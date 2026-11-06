@@ -1,0 +1,6 @@
+PMDS (Phase Modulation Data Service) reference implementation
+Copyright 2026 Michael Foley
+
+This product includes software developed by Michael Foley. It implements the PMDS draft
+specification, which carries RDS/RBDS-style station data (IEC 62106, NRSC-4) on the phase of
+an AM broadcast carrier.
