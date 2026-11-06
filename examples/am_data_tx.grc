@@ -1,0 +1,1153 @@
+options:
+  parameters:
+    author: Jordan Johnson (jowijo)
+    catch_exceptions: 'True'
+    category: CQ
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: Mono AM with RDS-lite station data on the carrier phase, and an optional
+      skywave channel simulator.
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: am_data_tx
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: PMDS Transmitter (Mono AM + PMDS + skywave simulator)
+    window_size: 1500, 720
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1201, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: alert_level
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Alert (test text only)
+    label0: 'Off'
+    label1: Test (PTY 30)
+    label2: Emergency (PTY 31)
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '3'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QHBoxLayout
+    type: int
+    value: '0'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1136, 444.0]
+    rotation: 0
+    state: enabled
+- name: alert_msg
+  id: variable_qtgui_entry
+  parameters:
+    comment: ''
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: Alert text
+    type: string
+    value: This is a test of the AM data alert flag. This is only a test.
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 432.0]
+    rotation: 0
+    state: enabled
+- name: data_dev
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Data deviation (deg peak)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '1'
+    stop: '45'
+    value: '8.6'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1696, 272.0]
+    rotation: 0
+    state: enabled
+- name: data_on
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: PMDS data
+    label0: 'On'
+    label1: 'Off'
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '1'
+    option1: '0'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QHBoxLayout
+    type: int
+    value: '1'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1568, 272.0]
+    rotation: 0
+    state: enabled
+- name: data_rate
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Bit rate (bit/s)
+    label0: '46.875'
+    label1: 93.75 (default)
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '46.875'
+    option1: '93.75'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QHBoxLayout
+    type: real
+    value: '93.75'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1880, 264.0]
+    rotation: 0
+    state: enabled
+- name: hi_cut
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Hi Cut
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '3000'
+    step: '100'
+    stop: '15000'
+    value: '10200'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [336, 504.0]
+    rotation: 0
+    state: enabled
+- name: mod_level
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: 'Mod level (calibrate: negative peaks 95-100%)'
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0.25'
+    step: '0.005'
+    stop: '3.0'
+    value: '2'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [40, 512.0]
+    rotation: 0
+    state: enabled
+- name: pilot_level
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Pilot (5% = FCC)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '.01'
+    stop: '.15'
+    value: '0.05'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [640, 504.0]
+    rotation: 0
+    state: enabled
+- name: ps_text
+  id: variable_qtgui_entry
+  parameters:
+    comment: ''
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: PS (8 chars)
+    type: string
+    value: ROCK1650
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2024, 264.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '192000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 144.0]
+    rotation: 0
+    state: enabled
+- name: sky_cn
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: C/N (dB in 10 kHz)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '1'
+    stop: '60'
+    value: '40'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2000, 568.0]
+    rotation: 0
+    state: enabled
+- name: sky_ipm
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Transmitter IPM (deg at 95%)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '0.5'
+    stop: '15'
+    value: '0'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1816, 440.0]
+    rotation: 0
+    state: enabled
+- name: sky_on
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Skywave simulator
+    label0: 'Off'
+    label1: 'On'
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QHBoxLayout
+    type: int
+    value: '0'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1688, 424.0]
+    rotation: 0
+    state: enabled
+- name: sky_preset
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Skywave preset
+    label0: ''
+    label1: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[''Daytime groundwave'', ''Mush zone (ground + sky)'', ''Night, one sky
+      mode'', ''Night, two sky modes'', ''Night, disturbed'', ''Twilight flutter'']'
+    num_opts: '0'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[''steady'', ''mush'', ''night1'', ''night2'', ''disturbed'', ''flutter'']'
+    orient: Qt.QHBoxLayout
+    type: string
+    value: night2
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1968, 416.0]
+    rotation: 0
+    state: enabled
+- name: stereo
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Mode
+    label0: Mono AM + data
+    label1: C-QUAM stereo (data off)
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1, 2]'
+    orient: Qt.QHBoxLayout
+    type: int
+    value: '0'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [488, 496.0]
+    rotation: 0
+    state: enabled
+- name: tx_freq
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: TX Freq (Hz)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '550000'
+    step: '10000'
+    stop: '1700000'
+    value: '1650000'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [336, 368.0]
+    rotation: 0
+    state: enabled
+- name: tx_freq_fine
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: TX Freq Fine Tune
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '-10000'
+    step: '1'
+    stop: '10000'
+    value: '0'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [496, 360.0]
+    rotation: 0
+    state: enabled
+- name: tx_gain
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: TX GAIN
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '47'
+    value: '47'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [216, 512.0]
+    rotation: 0
+    state: enabled
+- name: audio_source_0
+  id: audio_source
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    device_name: CABLE-A Output
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_outputs: '2'
+    ok_to_block: 'True'
+    samp_rate: samp_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [80, 408.0]
+    rotation: 0
+    state: enabled
+- name: blocks_complex_to_arg_0
+  id: blocks_complex_to_arg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [820, 330]
+    rotation: 0
+    state: enabled
+- name: blocks_file_sink_pmds
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: pmds_tx.cfile
+    type: complex
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1224, 240.0]
+    rotation: 0
+    state: disabled
+- name: blocks_keep_one_in_n_0
+  id: blocks_keep_one_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '64'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1180, 330]
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_const_deg
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: '57.29578'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1000, 330]
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: 0.3 if sky_on == 0 else 0.12
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1300, 160]
+    rotation: 0
+    state: enabled
+- name: epy_block_cquam
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nC-QUAM AM stereo modulator (Motorola Compatible Quadrature\
+      \ AM), complex baseband.\nWith stereo off, the same block is a plain AM modulator:\
+      \ (L+R) on the envelope,\nno phase modulation, no pilot.\n\nInputs : L and R\
+      \ audio (float), band-limited beforehand.\nOutput : complex baseband, carrier\
+      \ = 1.0 (scale for transmit power afterwards).\n\nFollows 47 CFR 73.128: L+R\
+      \ = 1 is 100% amplitude modulation, L-R = 1 is 100%\nphase modulation (45 degrees\
+      \ with no envelope modulation), and a 25 Hz pilot\nat +/-0.05 rad (5% L-R) signals\
+      \ stereo. Unlike plain QUAM, the envelope is\nheld at exactly 1 + (L+R), so\
+      \ mono radios and C-QUAM decoders both hear clean\naudio; only the phase carries\
+      \ the stereo difference.\n\nlevel    : scale for each channel; 0.5 makes full-scale\
+      \ L = R = 1.0 equal 100%.\n           Stereo Tool's asymmetry turns its output\
+      \ down to make room for +125%:\n           with +125% at full scale, -100% lands\
+      \ at 0.8, so level = 0.5 / 0.8 = 0.625.\n           Calibrate with the monitor:\
+      \ negative peaks at 95-100% on dense program.\nstereo   : 1 = C-QUAM stereo,\
+      \ 0 = mono AM (L+R only)\npilot    : 25 Hz pilot, as a fraction of 100% L-R\
+      \ (0.05 = the FCC's 5%)\npos_peak : positive modulation limit (1.25 = +125%);\
+      \ negative is held at -100%\n\"\"\"\nimport numpy as np\nfrom gnuradio import\
+      \ gr\n\n\nclass blk(gr.sync_block):\n    def __init__(self, samp_rate=192000,\
+      \ level=0.5, pilot=0.05, pos_peak=1.25, stereo=1):\n        gr.sync_block.__init__(self,\
+      \ name='C-QUAM Modulator',\n                               in_sig=[np.float32,\
+      \ np.float32], out_sig=[np.complex64])\n        self.samp_rate = samp_rate\n\
+      \        self.level = level\n        self.pilot = pilot\n        self.pos_peak\
+      \ = pos_peak\n        self.stereo = stereo\n        self._n = 0\n\n    def work(self,\
+      \ input_items, output_items):\n        L = input_items[0].astype(np.float64)\
+      \ * self.level\n        R = input_items[1].astype(np.float64) * self.level\n\
+      \        n = len(L)\n        period = int(round(self.samp_rate / 25.0))    \
+      \        # 7680 samples at 192 kHz\n        k = (self._n + np.arange(n)) % period\
+      \                 # pilot phase, continuous across calls\n        self._n =\
+      \ (self._n + n) % period\n        s = L + R\n        if self.stereo:\n     \
+      \       d = L - R + self.pilot * np.cos(2 * np.pi * k / period)\n        else:\n\
+      \            d = np.zeros(n)                                   # mono AM: the\
+      \ envelope only\n        env = np.clip(1.0 + s, 0.0, 1.0 + self.pos_peak)  \
+      \    # -100% .. +125%\n        theta = np.arctan2(d, 1.0 + s)              \
+      \          # QUAM's phase ...\n        output_items[0][:] = (env * np.exp(1j\
+      \ * theta)).astype(np.complex64)   # ... C-QUAM's envelope\n        return n\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    level: mod_level
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    pilot: pilot_level
+    pos_peak: '1.25'
+    samp_rate: samp_rate
+    stereo: stereo
+  states:
+    _io_cache: ('C-QUAM Modulator', 'blk', [('samp_rate', '192000'), ('level', '0.5'),
+      ('pilot', '0.05'), ('pos_peak', '1.25'), ('stereo', '1')], [('0', 'float', 1),
+      ('1', 'float', 1)], [('0', 'complex', 1)], '', ['level', 'pilot', 'pos_peak',
+      'samp_rate', 'stereo'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 140]
+    rotation: 0
+    state: enabled
+- name: epy_block_pmds
+  id: epy_block
+  parameters:
+    _source_code: "# Copyright 2026 Michael Foley\n# SPDX-License-Identifier: GPL-3.0-or-later\n\
+      #\n# This program is free software: you can redistribute it and/or modify it\
+      \ under the terms of\n# the GNU General Public License as published by the Free\
+      \ Software Foundation, either version 3\n# of the License, or (at your option)\
+      \ any later version.\n#\n# This program is distributed in the hope that it will\
+      \ be useful, but WITHOUT ANY WARRANTY;\n# without even the implied warranty\
+      \ of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n# See the GNU General\
+      \ Public License for more details: <https://www.gnu.org/licenses/>.\n\"\"\"\n\
+      PMDS encoder block for GNU Radio: a thin wrapper around pmds.Encoder.\n\nInput\
+      \  : complex baseband from the AM modulator (mono AM: a real, positive envelope).\n\
+      Output : the same signal with the data added as slow phase modulation, y = x\
+      \ * e^(j*theta).\n         The envelope is untouched, so envelope detectors\
+      \ see nothing.\n\nThe parameters, the group schedule and the text sources are\
+      \ described in pmds.encoder.\nThe pmds package has to be importable: install\
+      \ it once from the radioconda prompt with\n    pip install -e <the folder that\
+      \ holds pmds>\nor keep the pmds folder beside the flowgraph and start GNU Radio\
+      \ Companion from there.\n\"\"\"\nimport os\nimport sys\n\nimport numpy as np\n\
+      from gnuradio import gr\n\ntry:\n    from pmds.encoder import Encoder\nexcept\
+      \ ImportError:                                  # not installed: look in the\
+      \ working folder\n    sys.path.insert(0, os.getcwd())\n    try:\n        from\
+      \ pmds.encoder import Encoder\n    except ImportError:\n        raise ImportError('PMDS:\
+      \ the pmds package was not found. Install it once with '\n                 \
+      \         '\"pip install -e <folder that holds pmds>\", or start GNU Radio '\n\
+      \                          'Companion from that folder.') from None\n\n\nclass\
+      \ blk(Encoder, gr.sync_block):\n    \"\"\"PMDS encoder: RDS-style station data\
+      \ on the carrier's phase. Parameters and text\n    sources are described in\
+      \ pmds.encoder.\"\"\"\n\n    def __init__(self, samp_rate=192000, data_on=1,\
+      \ deviation=15.0, bit_rate=93.75, fmt='compact',\n                 call='WAMD',\
+      \ pi='', pty=4, tp=0, ta=0, ps='AM 1710', ps_upper=1, ps_file='',\n        \
+      \         rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,\n\
+      \                 facility_id=0, af='', isrc='', ext_every=8,\n            \
+      \     alert=0, alert_text='This is a test of the AM data alert flag. This is\
+      \ only a test.',\n                 alert_file='', rt_program=''):\n        gr.sync_block.__init__(self,\
+      \ name='PMDS Encoder',\n                               in_sig=[np.complex64],\
+      \ out_sig=[np.complex64])\n        Encoder.__init__(self, samp_rate=samp_rate,\
+      \ data_on=data_on, deviation=deviation,\n                         bit_rate=bit_rate,\
+      \ fmt=fmt, call=call, pi=pi, pty=pty, tp=tp, ta=ta, ps=ps,\n               \
+      \          ps_upper=ps_upper, ps_file=ps_file, rt=rt, rt_file=rt_file, rt_len=rt_len,\n\
+      \                         rt_every=rt_every, facility_id=facility_id, af=af,\
+      \ isrc=isrc,\n                         ext_every=ext_every, alert=alert, alert_text=alert_text,\n\
+      \                         alert_file=alert_file, rt_program=rt_program)\n\n\
+      \    def work(self, input_items, output_items):\n        self.modulate(input_items[0],\
+      \ output_items[0])\n        return len(input_items[0])\n"
+    af: ''''''
+    affinity: ''
+    alert: alert_level
+    alert_file: ''''''
+    alert_text: alert_msg
+    alias: ''
+    bit_rate: data_rate
+    call: '''WAMD'''
+    comment: ''
+    data_on: data_on if stereo == 0 else 0
+    deviation: data_dev
+    ext_every: '8'
+    facility_id: '0'
+    fmt: '''compact'''
+    isrc: ''''''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    pi: ''''''
+    ps: ps_text
+    ps_file: ''''''
+    ps_upper: '1'
+    pty: '5'
+    rt: ''''''
+    rt_every: '1'
+    rt_file: ''''''
+    rt_len: '64'
+    rt_program: '''C:/Users/korn3/Documents/rt_nowplaying.txt'''
+    samp_rate: samp_rate
+    ta: '0'
+    tp: '0'
+  states:
+    _io_cache: '(''PMDS Encoder'', ''blk'', [(''samp_rate'', ''192000''), (''data_on'',
+      ''1''), (''deviation'', ''15.0''), (''bit_rate'', ''93.75''), (''fmt'', "''compact''"),
+      (''call'', "''WAMD''"), (''pi'', "''''"), (''pty'', ''4''), (''tp'', ''0''),
+      (''ta'', ''0''), (''ps'', "''AM 1710''"), (''ps_upper'', ''1''), (''ps_file'',
+      "''''"), (''rt'', "''''"), (''rt_file'', "''C:/RadioDJv2/Now_Playing.txt''"),
+      (''rt_len'', ''64''), (''rt_every'', ''1''), (''facility_id'', ''0''), (''af'',
+      "''''"), (''isrc'', "''''"), (''ext_every'', ''8''), (''alert'', ''0''), (''alert_text'',
+      "''This is a test of the AM data alert flag. This is only a test.''"), (''alert_file'',
+      "''''"), (''rt_program'', "''''")], [(''0'', ''complex'', 1)], [(''0'', ''complex'',
+      1)], "PMDS encoder: RDS-style station data on the carrier''s phase. Parameters
+      and text\nsources are described in pmds.encoder.", [''af'', ''alert'', ''alert_file'',
+      ''alert_text'', ''bit_rate'', ''call'', ''data_on'', ''deviation'', ''ext_every'',
+      ''facility_id'', ''fmt'', ''isrc'', ''pi'', ''ps'', ''ps_file'', ''ps_upper'',
+      ''pty'', ''rt'', ''rt_every'', ''rt_file'', ''rt_len'', ''rt_program'', ''samp_rate'',
+      ''ta'', ''tp''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [800, 140]
+    rotation: 0
+    state: enabled
+- name: epy_block_sky
+  id: epy_block
+  parameters:
+    _source_code: "# Copyright 2026 Michael Foley\n# SPDX-License-Identifier: GPL-3.0-or-later\n\
+      #\n# This program is free software: you can redistribute it and/or modify it\
+      \ under the terms of\n# the GNU General Public License as published by the Free\
+      \ Software Foundation, either version 3\n# of the License, or (at your option)\
+      \ any later version.\n#\n# This program is distributed in the hope that it will\
+      \ be useful, but WITHOUT ANY WARRANTY;\n# without even the implied warranty\
+      \ of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n# See the GNU General\
+      \ Public License for more details: <https://www.gnu.org/licenses/>.\n\"\"\"\n\
+      Skywave channel simulator for the PMDS tests (Watterson-style, like HF channel\
+      \ simulators).\n\nInput/output: complex baseband, carrier = 1.0 (put it right\
+      \ after the PMDS encoder, before\nany transmit gain). Works at any sample rate\
+      \ (192 kHz in the transmitter, 48 kHz offline).\n\nEach propagation path is\
+      \ (level dB, delay ms, Doppler spread Hz):\n  spread 0   : a steady path (groundwave)\n\
+      \  spread > 0 : a fading path, complex Gaussian (Rayleigh) with a Gaussian Doppler\
+      \ spectrum;\n               the spread is the two-sided width 2*sigma, as in\
+      \ Watterson / ITU-R F.1487\nPath levels are relative; the total is normalised\
+      \ so the mean received carrier power is 1,\nwhich is what cn_db (carrier to\
+      \ noise in 10 kHz) is measured against.\n\nPresets (starting points borrowed\
+      \ from HF practice until real MW recordings calibrate them):\n  steady     daytime\
+      \ groundwave                   0 dB / 0 ms / 0 Hz\n  mush       groundwave +\
+      \ skywave, equal          0/0/0  +  0 dB / 0.7 ms / 0.6 Hz\n  night1     one\
+      \ sky mode, slow fades             0 dB / 0 ms / 0.2 Hz\n  night2     two sky\
+      \ modes                        0/0/0.6  +  -2 dB / 1.5 ms / 0.6 Hz\n  disturbed\
+      \  two equal modes, faster              0/0/1.0  +   0 dB / 2.0 ms / 1.0 Hz\n\
+      \  flutter    one mode, twilight flutter           0 dB / 0 ms / 2.0 Hz\n  custom\
+      \     path_db / path_ms / path_spread lists\n\nTransmitter IPM (ipm_deg > 0):\
+      \ incidental phase modulation that follows the program, applied\nbefore propagation\
+      \ as phase = ipm_deg * (envelope - 1) / 0.95, so ipm_deg is the peak phase at\n\
+      95% modulation (the way transmitter specs quote it). Memoryless: a first approximation\
+      \ of a\ntransmitter whose tuning turns amplitude into phase. 1 deg is a modern\
+      \ solid-state transmitter,\n3 deg a fair older one, 6-10 deg one that badly\
+      \ needs neutralizing.\n\nNoise: cn_db < 99 adds white noise.  enable = 0 passes\
+      \ the signal through untouched.\n(For other stations on or near the channel,\
+      \ add real IQ recordings to the flowgraph instead.)\n\"\"\"\nimport math\n\n\
+      import numpy as np\nfrom gnuradio import gr\n\nPRESETS = {\n    'steady':  \
+      \  [(0.0, 0.0, 0.0)],\n    'mush':      [(0.0, 0.0, 0.0), (0.0, 0.7, 0.6)],\n\
+      \    'night1':    [(0.0, 0.0, 0.2)],\n    'night2':    [(0.0, 0.0, 0.6), (-2.0,\
+      \ 1.5, 0.6)],\n    'disturbed': [(0.0, 0.0, 1.0), (0.0, 2.0, 1.0)],\n    'flutter':\
+      \   [(0.0, 0.0, 2.0)],\n}\n\n\nclass _Slow:\n    \"\"\"A slowly varying process\
+      \ made at a low rate and linearly interpolated to the\n    signal rate. Fixed-size\
+      \ chunks, so the result doesn't depend on work() sizes.\"\"\"\n    CHUNK = 256\n\
+      \n    def __init__(self, rate, taps, rng, complex_=True, scale=1.0):\n     \
+      \   self.rate, self.taps, self.rng, self.cplx, self.scale = rate, taps, rng,\
+      \ complex_, scale\n        self.hist = self._white(len(taps) - 1)\n        self.buf\
+      \ = np.zeros(0, np.complex128 if complex_ else np.float64)\n        self.base\
+      \ = 0\n\n    def _white(self, m):\n        if self.cplx:\n            return\
+      \ (self.rng.standard_normal(m) + 1j * self.rng.standard_normal(m)) / math.sqrt(2)\n\
+      \        return self.rng.standard_normal(m)\n\n    def _more(self):\n      \
+      \  ext = np.concatenate((self.hist, self._white(self.CHUNK)))\n        out =\
+      \ np.convolve(ext, self.taps, 'valid') * self.scale\n        self.hist = ext[len(ext)\
+      \ - (len(self.taps) - 1):]\n        self.buf = np.concatenate((self.buf, out))\n\
+      \n    def at(self, p):\n        \"\"\"Values at low-rate positions p (increasing\
+      \ floats).\"\"\"\n        need = int(p[-1]) + 2 - self.base\n        while len(self.buf)\
+      \ < need:\n            self._more()\n        i0 = np.floor(p)\n        f = p\
+      \ - i0\n        i = i0.astype(np.int64) - self.base\n        v = self.buf[i]\
+      \ * (1 - f) + self.buf[i + 1] * f\n        drop = int(p[0]) - self.base - 1\n\
+      \        if drop > 0:\n            self.buf, self.base = self.buf[drop:], self.base\
+      \ + drop\n        return v\n\n\ndef _fading(spread_hz, rng, rate=100.0):\n \
+      \   \"\"\"Unit-power complex fading with a Gaussian Doppler spectrum of width\
+      \ 2*sigma = spread.\"\"\"\n    sig_f = spread_hz / 2.0\n    sig_t = 1.0 / (2\
+      \ * math.sqrt(2) * math.pi * sig_f)     # filter for that power spectrum\n \
+      \   L = max(2, int(4 * sig_t * rate))\n    t = np.arange(-L, L + 1) / rate\n\
+      \    h = np.exp(-0.5 * (t / sig_t) ** 2)\n    return _Slow(rate, h / math.sqrt(np.sum(h\
+      \ * h)), rng, True)\n\n\nclass blk(gr.sync_block):\n    def __init__(self, samp_rate=192000,\
+      \ enable=1, preset='night2',\n                 path_db=[0.0], path_ms=[0.0],\
+      \ path_spread=[0.0], cn_db=40.0, ipm_deg=0.0, seed=1):\n        gr.sync_block.__init__(self,\
+      \ name='Skywave Channel',\n                               in_sig=[np.complex64],\
+      \ out_sig=[np.complex64])\n        self.samp_rate = samp_rate\n        self.enable\
+      \ = enable\n        self.preset = preset\n        self.path_db = path_db\n \
+      \       self.path_ms = path_ms\n        self.path_spread = path_spread\n   \
+      \     self.cn_db = cn_db\n        self.ipm_deg = ipm_deg\n        self.seed\
+      \ = seed\n        self.quiet = False\n        self._key = None\n        self._n\
+      \ = 0\n\n    # ---- configuration ----\n    def paths(self):\n        if self.preset\
+      \ in PRESETS:\n            return PRESETS[self.preset]\n        return [(float(d),\
+      \ float(m), float(s)) for d, m, s in\n                zip(self.path_db, self.path_ms,\
+      \ self.path_spread)] or PRESETS['steady']\n\n    def _build(self):\n       \
+      \ fs, seed = float(self.samp_rate), int(self.seed)\n        paths = self.paths()\n\
+      \        lin = [10 ** (d / 10) for d, _, _ in paths]\n        tot = sum(lin)\n\
+      \        self._paths = []\n        for i, ((db, ms, spread), p) in enumerate(zip(paths,\
+      \ lin)):\n            D = int(round(ms * 1e-3 * fs))\n            fad = _fading(spread,\
+      \ np.random.default_rng([seed, i])) if spread > 0 else None\n            self._paths.append((math.sqrt(p\
+      \ / tot), D, fad))\n        self._maxd = max(D for _, D, _ in self._paths)\n\
+      \        self._hist = np.zeros(self._maxd, np.complex64)\n        self._noise\
+      \ = np.random.default_rng([seed, 100])\n        self._key = self._config_key()\n\
+      \        if not self.quiet:\n            print('Skywave: %s, %s' % (self.preset,\
+      \ ', '.join(\n                '%+g dB / %g ms / %g Hz' % p for p in paths)),\
+      \ flush=True)\n\n    def _config_key(self):\n        return (self.preset, tuple(self.path_db),\
+      \ tuple(self.path_ms), tuple(self.path_spread),\n                int(self.seed),\
+      \ float(self.samp_rate))\n\n    # ---- signal ----\n    def work(self, input_items,\
+      \ output_items):\n        x, out = input_items[0], output_items[0]\n       \
+      \ n = len(x)\n        if not int(self.enable):\n            out[:] = x\n   \
+      \         self._n += n\n            return n\n        if self._key != self._config_key():\n\
+      \            self._build()\n        fs = float(self.samp_rate)\n        idx\
+      \ = self._n + np.arange(n)\n        ipm = float(self.ipm_deg)\n        if ipm:\
+      \                                        # transmitter: amplitude turned into\
+      \ phase\n            x = x * np.exp(1j * math.radians(ipm) / 0.95 * (np.abs(x)\
+      \ - 1.0)).astype(np.complex64)\n        ext = np.concatenate((self._hist, x))\
+      \ if self._maxd else x\n        y = np.zeros(n, np.complex128)\n        for\
+      \ amp, D, fad in self._paths:\n            seg = ext[self._maxd - D:self._maxd\
+      \ - D + n]\n            y += amp * seg if fad is None else amp * fad.at(idx\
+      \ * (fad.rate / fs)) * seg\n        if self._maxd:\n            self._hist =\
+      \ ext[len(ext) - self._maxd:]\n\n        cn = float(self.cn_db)\n        if\
+      \ cn < 99:\n            sd = math.sqrt(fs / (10 ** (cn / 10) * 1e4) / 2)\n \
+      \           w = self._noise.standard_normal(2 * n)        # one draw per call:\
+      \ same noise for any work() size\n            y += sd * (w[0::2] + 1j * w[1::2])\n\
+      \        out[:] = y.astype(np.complex64)\n        self._n += n\n        return\
+      \ n\n"
+    affinity: ''
+    alias: ''
+    cn_db: sky_cn
+    comment: ''
+    enable: sky_on
+    ipm_deg: sky_ipm
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    path_db: '[0.0]'
+    path_ms: '[0.0]'
+    path_spread: '[0.0]'
+    preset: sky_preset
+    samp_rate: samp_rate
+    seed: '1'
+  states:
+    _io_cache: ('Skywave Channel', 'blk', [('samp_rate', '192000'), ('enable', '1'),
+      ('preset', "'night2'"), ('path_db', '[0.0]'), ('path_ms', '[0.0]'), ('path_spread',
+      '[0.0]'), ('cn_db', '40.0'), ('ipm_deg', '0.0'), ('seed', '1')], [('0', 'complex',
+      1)], [('0', 'complex', 1)], '', ['cn_db', 'enable', 'ipm_deg', 'path_db', 'path_ms',
+      'path_spread', 'preset', 'samp_rate', 'seed'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1060, 140]
+    rotation: 0
+    state: enabled
+- name: low_pass_filter_l
+  id: low_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: ''
+    cutoff_freq: hi_cut
+    decim: '1'
+    gain: '1'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    type: fir_filter_fff
+    width: 1e3
+    win: window.WIN_BLACKMAN
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 60]
+    rotation: 0
+    state: enabled
+- name: low_pass_filter_r
+  id: low_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: ''
+    cutoff_freq: hi_cut
+    decim: '1'
+    gain: '1'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    type: fir_filter_fff
+    width: 1e3
+    win: window.WIN_BLACKMAN
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 220]
+    rotation: 0
+    state: enabled
+- name: note_audio_filter
+  id: note
+  parameters:
+    alias: ''
+    comment: ''
+    note: Audio band limit (L and R, before modulation)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 16]
+    rotation: 0
+    state: enabled
+- name: note_check
+  id: note
+  parameters:
+    alias: ''
+    comment: ''
+    note: 'Enable the File Sink for ~30 s (it records after the simulator), then:
+      python pmds_check.py pmds_tx.cfile'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360, 232.0]
+    rotation: 0
+    state: enabled
+- name: note_cquam
+  id: note
+  parameters:
+    alias: ''
+    comment: ''
+    note: 'Mono AM: envelope 1+(L+R). C-QUAM: L-R on the phase plus the 25 Hz pilot,
+      and the data is switched off (they share the phase).'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 72.0]
+    rotation: 0
+    state: enabled
+- name: note_pmds
+  id: note
+  parameters:
+    alias: ''
+    comment: ''
+    note: 'PMDS compact groups, 93.75 bit/s at 15 deg. Set facility_id, af (e.g. 95.5,
+      750) and isrc in the encoder; rt_file = Now_Playing.txt or nowplaying.json.
+      rt_program = path to a text file holding a Stereo Tool style rotation line (overrides
+      rt_file). Alert: flag + PTY 31 (30 = test), TEST TEXT ONLY.'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [800, 80.0]
+    rotation: 0
+    state: enabled
+- name: note_sky
+  id: note
+  parameters:
+    alias: ''
+    comment: ''
+    note: 'Skywave simulator: transmitter IPM, fading paths, noise (C/N in 10 kHz).
+      Off = straight through. TX level drops to 0.12 when on.'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1048, 72.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_time_sink_phase
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'False'
+    grid: 'True'
+    gui_hint: ''
+    label1: phase
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'False'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"PMDS carrier phase"'
+    nconnections: '1'
+    size: '6000'
+    srate: samp_rate/64
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Phase
+    ymax: '30'
+    ymin: '-30'
+    yunit: '"deg"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360, 310]
+    rotation: 0
+    state: enabled
+- name: rational_resampler_xxx_0
+  id: rational_resampler_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    decim: '12'
+    fbw: '0'
+    interp: '125'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    taps: '[]'
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1600, 32.0]
+    rotation: 0
+    state: enabled
+- name: soapy_hackrf_sink_0
+  id: soapy_hackrf_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: 'False'
+    bandwidth: '0'
+    center_freq: tx_freq+tx_freq_fine
+    comment: ''
+    dev_args: ''
+    samp_rate: (samp_rate*125)/12
+    type: fc32
+    vga: tx_gain
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1840, 48.0]
+    rotation: 0
+    state: enabled
+- name: virtual_sink_0
+  id: virtual_sink
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: TX
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 160]
+    rotation: 0
+    state: enabled
+- name: virtual_source_0
+  id: virtual_source
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: TX
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1400, 72.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [audio_source_0, '0', low_pass_filter_l, '0']
+- [audio_source_0, '1', low_pass_filter_r, '0']
+- [blocks_complex_to_arg_0, '0', blocks_multiply_const_deg, '0']
+- [blocks_keep_one_in_n_0, '0', qtgui_time_sink_phase, '0']
+- [blocks_multiply_const_deg, '0', blocks_keep_one_in_n_0, '0']
+- [blocks_multiply_const_vxx_0, '0', virtual_sink_0, '0']
+- [epy_block_cquam, '0', epy_block_pmds, '0']
+- [epy_block_pmds, '0', blocks_complex_to_arg_0, '0']
+- [epy_block_pmds, '0', epy_block_sky, '0']
+- [epy_block_sky, '0', blocks_file_sink_pmds, '0']
+- [epy_block_sky, '0', blocks_multiply_const_vxx_0, '0']
+- [low_pass_filter_l, '0', epy_block_cquam, '0']
+- [low_pass_filter_r, '0', epy_block_cquam, '1']
+- [rational_resampler_xxx_0, '0', soapy_hackrf_sink_0, '0']
+- [virtual_source_0, '0', rational_resampler_xxx_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0
