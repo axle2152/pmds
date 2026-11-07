@@ -53,6 +53,7 @@ Usage:
 import argparse
 import datetime
 import math
+import os
 import threading
 import time
 from collections import deque
@@ -1000,6 +1001,7 @@ class FMStereoReceiver(gr.top_block):
             setattr(self, f"tone_tre_k_{ch}", blocks.multiply_const_ff(0.0))
             setattr(self, f"tone_sum_{ch}", blocks.add_ff(1))
             setattr(self, f"headroom_{ch}", blocks.multiply_const_ff(hr))
+        audio_device = audio_device or os.environ.get('PMDS_AUDIO_DEVICE', '')   # e.g. pulse
         self.audio_sink = audio.sink(self.audio_rate, audio_device, True)
 
         ##################################################
@@ -1782,6 +1784,14 @@ class FMStereoReceiver(gr.top_block):
     # ------------------------------------------------------------------
     # Control step: call every ~20 ms (any rate works, timing is measured)
     # ------------------------------------------------------------------
+    def _flow(self):
+        """Samples moved so far by the dongle and by the sound card, for stall reports."""
+        try:
+            return (f"dongle {self.src.nitems_written(0)} samples, "
+                    f"sound card {self.audio_sink.nitems_read(0)} samples")
+        except Exception as e:
+            return f"counters unavailable ({e})"
+
     def start(self, *args, **kwargs):
         """Start the flowgraph; the stall watchdog counts from here, not from construction."""
         gr.top_block.start(self, *args, **kwargs)
@@ -1804,7 +1814,8 @@ class FMStereoReceiver(gr.top_block):
                 self._wb_seen = now
                 self._got_samples = True
             elif now - self._wb_seen > (self.STALL_S if self._got_samples else self.START_S):
-                raise RuntimeError(f"no samples from the dongle for {now - self._wb_seen:.1f} s")
+                raise RuntimeError(f"no samples from the dongle for {now - self._wb_seen:.1f} s; "
+                                   f"{self._flow()}")
             pw = max(wb.real / self._wb_n, 1e-12)
             clip_frac = wb.imag / self._wb_n
             self.composite_dbfs = 10 * math.log10(pw)

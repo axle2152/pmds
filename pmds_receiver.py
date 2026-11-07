@@ -42,6 +42,7 @@ turns the correction off; pmds_framers() gives every framer's block counts.
 """
 
 import math
+import os
 import threading
 import time
 
@@ -517,6 +518,14 @@ class PMDSReceiver(gr.top_block):
                 f"Clip     {self.clip_pct:6.3f} %   source: {src}")
 
     # ---------------------------------------------------------------- update
+    def _flow(self):
+        """Samples moved so far by the dongle and by the sound card, for stall reports."""
+        try:
+            return (f"dongle {self.src.nitems_written(0)} samples, "
+                    f"sound card {self.audio_sink.nitems_read(0)} samples")
+        except Exception as e:
+            return f"counters unavailable ({e})"
+
     def start(self, *args, **kwargs):
         """Start the flowgraph; the stall watchdog counts from here, not from construction
         (opening the dongle can take seconds, longer on Linux than on Windows)."""
@@ -551,7 +560,8 @@ class PMDSReceiver(gr.top_block):
                     self.clip_pct = 100.0 * float(np.mean((np.abs(x.real) > 0.98) | (np.abs(x.imag) > 0.98)))
             limit = self.STALL_S if self._got_samples else self.START_S
             if now - self._wb_seen > limit:
-                raise RuntimeError(f"no samples from the dongle for {now - self._wb_seen:.1f} s")
+                raise RuntimeError(f"no samples from the dongle for {now - self._wb_seen:.1f} s; "
+                                   f"{self._flow()}")
 
             try:
                 self._measure(now)
@@ -673,6 +683,7 @@ class PMDSReceiver(gr.top_block):
         return osmosdr.source(args=args)
 
     def _make_audio_sink(self, device):
+        device = device or os.environ.get('PMDS_AUDIO_DEVICE', '')   # e.g. pulse, plughw:0,0
         return audio.sink(self.audio_rate, device, True)
 
 
