@@ -26,7 +26,8 @@ from collections import deque
 from pmds.codec import pi_to_callsign
 
 BG, FG, DIM = '#111111', '#cfeee8', '#8fbfb6'
-COL = {'clean': '#2e9e62', 'fixed': '#d9a520', 'lost': '#c03a3a', 'sync': '#4a78d0', 'nosync': '#777777'}
+COL = {'clean': '#2e9e62', 'fixed': '#d9a520', 'lost': '#c03a3a', 'sync': '#4a78d0', 'nosync': '#777777',
+       'slip': '#a066d8'}
 CELLS, CELL_W = 150, 5
 
 
@@ -59,7 +60,7 @@ class PmdsMonitor:
         row = tk.Frame(w, bg=BG)
         row.pack(fill=tk.X, padx=10)
         for name, label in (('clean', 'clean'), ('fixed', 'fixed (1 bit)'), ('lost', 'lost'),
-                            ('sync', 'sync found'), ('nosync', 'sync lost')):
+                            ('sync', 'sync found'), ('nosync', 'sync lost'), ('slip', 'slip followed')):
             tk.Label(row, text='\u25a0', fg=COL[name], bg=BG, font=('Courier', 10)).pack(side=tk.LEFT)
             tk.Label(row, text=label + '   ', fg=DIM, bg=BG, font=('Courier', 8)).pack(side=tk.LEFT)
         self.strict = tk.BooleanVar(value=False)
@@ -140,10 +141,12 @@ class PmdsMonitor:
             pct = lambda d, k, n: 100.0 * d[k] / n
             self.cnt.set('since tune  %5d blocks   clean %5.1f%%   fixed %5.1f%%   lost %5.1f%%\n'
                          'last 60 s   %5d blocks   clean %5.1f%%   fixed %5.1f%%   lost %5.1f%%\n'
-                         'groups %d (%.2f/s)   data %4.1f deg   SNR %4.1f dB   strict %s'
+                         'groups %d (%.2f/s)   data %4.1f deg   SNR %4.1f dB   C/N in-band %s   slips %d   strict %s'
                          % (sum(c.values()), pct(c, 'clean', tot), pct(c, 'fixed', tot), pct(c, 'lost', tot),
                             sum(r.values()), pct(r, 'clean', rt), pct(r, 'fixed', rt), pct(r, 'lost', rt),
-                            fr.groups, fr.rate(), fr.dev_deg(), fr.snr_db(), 'ON' if self.strict.get() else 'off'))
+                            fr.groups, fr.rate(), fr.dev_deg(), fr.snr_db(),
+                            '--' if fr.cn_db() is None else '%.1f dB' % fr.cn_db(), fr.slips_found,
+                            'ON' if self.strict.get() else 'off'))
             self._strip(list(fr.block_log)[-CELLS:])
         drained = 0
         while self.lines and drained < 200:
@@ -161,7 +164,7 @@ class PmdsMonitor:
         cv.delete('all')
         x = 2
         for _, s in entries:
-            if s in ('sync', 'nosync'):
+            if s in ('sync', 'nosync', 'slip'):
                 cv.create_rectangle(x, 1, x + 1, 33, fill=COL[s], outline='')
                 x += 2
             else:

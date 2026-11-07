@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pmds"
-version = "0.1.1"
+version = "0.2.0"
 description = "PMDS (Phase Modulation Data Service): RDS-style station data on the phase of an AM carrier"
 readme = "README.md"
 license = {text = "Apache-2.0"}

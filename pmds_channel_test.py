@@ -54,8 +54,9 @@ PS = 'AM 1710'
 RT = 'Beyoncé - Halo (Live) · ¿Qué tal, Atlanta? 72°F and clear tonight'[:64]
 
 
-DEV = 15.0                      # data deviation, degrees peak (--dev)
+DEV = 8.6                       # data deviation, degrees peak (--dev)
 IPM = 0.0                       # transmitter IPM, degrees at 95% modulation (--ipm)
+SKY_DB = -6.0                   # mush zone: sky wave relative to ground wave, dB (--sky-db)
 FLOOR = None                    # envelope normalization floor (--env-floor), None = the decoder's own
 NORM = 'local'                  # decoder reference: 'local' (default), 'carrier' or 'envelope' (--norm)
 PROGRAM = 'flat'                # 'flat': noise to 4.5 kHz; 'bass': plus heavy low end (--program)
@@ -75,7 +76,7 @@ def run(preset, rate, seed, secs, cn, data_on=True, keep_env=False, fmt='compact
     e = E(samp_rate=FS, data_on=1 if data_on else 0, deviation=DEV, bit_rate=rate, fmt=fmt,
           call='WAMD', ps=PS, rt=RT, rt_file='', facility_id=73977, af='95.5', isrc='USMC17300123')
     e.quiet = True
-    ch = sky.blk(samp_rate=FS, preset=preset, cn_db=cn, ipm_deg=IPM, seed=seed)
+    ch = sky.blk(samp_rate=FS, preset=preset, cn_db=cn, ipm_deg=IPM, seed=seed, sky_db=SKY_DB)
     ch.quiet = True
     if PROGRAM == 'bass':                             # dense, bass-heavy program: what drives IPM
         bt = firdes.low_pass(1.0, FS, 250, 150, filter.window.WIN_HAMMING)
@@ -204,13 +205,16 @@ def program_level(env_off):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--presets', default=','.join(sky.PRESETS))
+    ap.add_argument('--presets', default='steady,mush,night1,night2,disturbed,flutter',
+                    help='comma list; the hf_ presets are the older shortwave-style ones')
+    ap.add_argument('--sky-db', type=float, default=-6.0,
+                    help='mush preset: sky wave relative to ground wave, dB')
     ap.add_argument('--rates', default='93.75', help='comma list; 93.75 is the chosen rate')
     ap.add_argument('--formats', default='compact', help='compact, rbds or both')
     ap.add_argument('--seeds', type=int, default=3)
     ap.add_argument('--secs', type=float, default=180)
     ap.add_argument('--cn', type=float, default=30.0, help='mean C/N in 10 kHz, dB')
-    ap.add_argument('--dev', type=float, default=15.0, help='data deviation, degrees peak')
+    ap.add_argument('--dev', type=float, default=8.6, help='data deviation, degrees peak')
     ap.add_argument('--ipm', type=float, default=0.0, help='transmitter IPM, degrees at 95%% modulation')
     ap.add_argument('--program', choices=('flat', 'bass'), default='flat',
                     help="test program: flat noise, or with heavy bass (what drives IPM)")
@@ -222,8 +226,8 @@ def main():
     ap.add_argument('--alert', action='store_true',
                     help='alert timing: PTY 31 + flag on for 30 groups every 80; how long until it shows')
     a = ap.parse_args()
-    global DEV, IPM, PROGRAM, NORM, FLOOR
-    DEV, IPM, PROGRAM, NORM, FLOOR = a.dev, a.ipm, a.program, a.norm, a.env_floor
+    global DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB
+    DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB = a.dev, a.ipm, a.program, a.norm, a.env_floor, a.sky_db
     rates = [float(r) for r in a.rates.split(',')]
     fmt = lambda v: '  -- ' if v is None else '%5.0f' % v
     print('C/N %g dB, data +/-%g deg, IPM %g deg, %s program, %d s per run, %d seeds' % (

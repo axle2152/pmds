@@ -74,10 +74,12 @@ decoding those tuners already do.
 | `pmds_encoder.py` | The encoder as a GNU Radio block |
 | `pmds_receiver.py` | A mono AM receiver with the PMDS decoder, for an RTL-SDR |
 | `pmds_monitor.py` | A window showing every block and group as it's decoded |
+| `pmds_tuner_ui.py` | A tuner window that shows PMDS data the way an RDS radio does (needs `fm_stereo.py`, not in this repository, for FM) |
 | `pmds_channel_test.py` | Offline test: encoder, simulated propagation and noise, decoder |
 | `pmds_check.py` | Decodes a recording of the transmitter |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
+| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`) and logos |
 
 ## Two licenses
 
@@ -91,13 +93,24 @@ product. Nothing in it imports GNU Radio or copies from GPL code, and it should 
 
 ## Setup
 
-From the radioconda prompt (or whichever Python runs your GNU Radio), once:
+Install the `pmds` package once. Point pip at the **top folder of this repository** (the one
+that holds `pyproject.toml`), not at the `pmds/` folder inside it.
 
-    pip install -e <this folder>
+Windows, from the radioconda prompt (or whichever Python runs your GNU Radio):
+
+    pip install -e <path to this repository>
+
+With MSYS2's Python, add `--no-deps --break-system-packages`.
+
+Linux (don't use `sudo`):
+
+    git clone https://github.com/axle2152/pmds.git
+    cd pmds
+    pip install --user -e .
 
 The `-e` makes it an editable install: pip leaves a pointer to this folder instead of copying
-the code, so updates to the files here take effect the next time a program starts. Run it again
-only if you move the folder. With MSYS2's Python, add `--no-deps --break-system-packages`.
+the code, so updates to the files here (for example after a `git pull`) take effect the next
+time a program starts. Run it again only if you move the folder.
 
 Without installing, keep the `pmds` folder beside the flowgraph and start GNU Radio Companion
 from this folder.
