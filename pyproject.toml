@@ -1,0 +1,21 @@
+# The pmds package (Apache 2.0). Install it once so GNU Radio Companion can always find it:
+#     pip install -e <this folder>
+# The GNU Radio blocks and tools beside it (pmds_*.py, skywave_channel.py) are GPL-3.0-or-later
+# and are not part of the package.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pmds"
+version = "0.1.1"
+description = "PMDS (Phase Modulation Data Service): RDS-style station data on the phase of an AM carrier"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [{name = "Michael Foley"}]
+requires-python = ">=3.8"
+dependencies = ["numpy"]
+
+[tool.setuptools]
+packages = ["pmds"]
