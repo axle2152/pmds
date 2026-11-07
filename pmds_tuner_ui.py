@@ -85,6 +85,7 @@ are saved per element ("colors"); delete an entry to go back to its default.
 """
 
 import argparse
+import gc
 import json
 import math
 import os
@@ -2412,6 +2413,8 @@ class TunerApp:
                         tb.close()
                     except Exception:
                         pass
+                tb = None                        # drop the last reference so the dongle is
+                gc.collect()                     # released before the next attempt opens it
             if not self.running:
                 break
             if not self._radio_run:
@@ -2430,9 +2433,12 @@ class TunerApp:
             try:
                 self.tb.update_blend()
                 self._error_count = 0
-            except Exception:
+            except Exception as e:
                 self._error_count += 1
                 if self._error_count >= self._MAX_ERRORS:
+                    print(f'Receiver stopped: {type(e).__name__}: {e}')   # why, in the terminal
+                    if not isinstance(e, RuntimeError):
+                        traceback.print_exc()
                     return
             time.sleep(0.02)
 
