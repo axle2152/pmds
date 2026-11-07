@@ -695,6 +695,7 @@ class FMStereoReceiver(gr.top_block):
 
     STALL_S           = 2.0    # no samples for this long = dongle gone (raises, so a
                                # GUI can reconnect; e.g. after the laptop sleeps)
+    START_S           = 8.0    # first samples may take this long after start()
 
     LO_NUDGE          = 2000.0 # tune the RTL 2 kHz above the station so the DC canceller
                                # can never mistake the station's own carrier for DC
@@ -1217,6 +1218,7 @@ class FMStereoReceiver(gr.top_block):
         self._last_wb      = None
         self._q_hist       = deque(maxlen=self.ATTACK_CONFIRM)
         self._wb_seen      = now              # last time a fresh wideband window arrived
+        self._got_samples  = False            # any fresh window since start()
         self._q_log        = deque()          # (t, q_raw) for AGC judging
         self._q_ctrl       = 0.0
         self._q_slow       = 0.0
@@ -1780,6 +1782,13 @@ class FMStereoReceiver(gr.top_block):
     # ------------------------------------------------------------------
     # Control step: call every ~20 ms (any rate works, timing is measured)
     # ------------------------------------------------------------------
+    def start(self, *args, **kwargs):
+        """Start the flowgraph; the stall watchdog counts from here, not from construction."""
+        gr.top_block.start(self, *args, **kwargs)
+        with self._lock:
+            self._wb_seen = time.monotonic()
+            self._got_samples = False
+
     def update_blend(self):
         with self._lock:
             now = time.monotonic()
@@ -1789,10 +1798,12 @@ class FMStereoReceiver(gr.top_block):
             # ---- wideband: overload and composite level ----
             wb = self.wb_probe.level()
             new_wb = wb != self._last_wb
+            first = self._last_wb is None
             self._last_wb = wb
-            if new_wb:
+            if new_wb and not first:
                 self._wb_seen = now
-            elif now - self._wb_seen > self.STALL_S:
+                self._got_samples = True
+            elif now - self._wb_seen > (self.STALL_S if self._got_samples else self.START_S):
                 raise RuntimeError(f"no samples from the dongle for {now - self._wb_seen:.1f} s")
             pw = max(wb.real / self._wb_n, 1e-12)
             clip_frac = wb.imag / self._wb_n
