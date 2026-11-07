@@ -65,19 +65,21 @@ decoding those tuners already do.
   detector, and a medium-wave propagation simulator
 - Not yet tested on a licensed AM station, in a car, or against real night-time recordings
 
-## What's in this folder
+## What's in this repository
 
 | File | What it is |
 |---|---|
 | `pmds/` | The core: encoder, decoder, framing and character set, in plain Python and numpy |
 | `tests/test_pmds.py` | Self-test: check code, the specification's test vectors, encode-decode loopback |
-| `pmds_encoder.py` | The encoder as a GNU Radio block |
-| `pmds_receiver.py` | A mono AM receiver with the PMDS decoder, for an RTL-SDR |
-| `pmds_monitor.py` | A window showing every block and group as it's decoded |
-| `pmds_channel_test.py` | Offline test: encoder, simulated propagation and noise, decoder |
-| `pmds_check.py` | Decodes a recording of the transmitter |
-| `skywave_channel.py` | The medium-wave propagation simulator |
-| `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
+| `docs/` | The draft specification (PDF) and logos |
+| `examples/pmds_encoder.py` | The encoder as a GNU Radio block |
+| `examples/pmds_receiver.py` | A mono AM receiver with the PMDS decoder, for an RTL-SDR |
+| `examples/pmds_monitor.py` | A window showing every block and group as it's decoded |
+| `examples/pmds_tuner_ui.py` | A tuner window that shows PMDS data the way an RDS radio does (needs `fm_stereo.py`, not in this repository, for FM) |
+| `examples/pmds_channel_test.py` | Offline test: encoder, simulated propagation and noise, decoder |
+| `examples/pmds_check.py` | Decodes a recording of the transmitter |
+| `examples/skywave_channel.py` | The medium-wave propagation simulator |
+| `examples/am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
 
 ## Two licenses
 
@@ -91,13 +93,24 @@ product. Nothing in it imports GNU Radio or copies from GPL code, and it should 
 
 ## Setup
 
-From the radioconda prompt (or whichever Python runs your GNU Radio), once:
+Install the `pmds` package once. Point pip at the **top folder of this repository** (the one
+that holds `pyproject.toml`), not at the `pmds/` folder inside it.
 
-    pip install -e <this folder>
+Windows, from the radioconda prompt (or whichever Python runs your GNU Radio):
+
+    pip install -e <path to this repository>
+
+With MSYS2's Python, add `--no-deps --break-system-packages`.
+
+Linux (don't use `sudo`):
+
+    git clone https://github.com/axle2152/pmds.git
+    cd pmds
+    pip install --user -e .
 
 The `-e` makes it an editable install: pip leaves a pointer to this folder instead of copying
-the code, so updates to the files here take effect the next time a program starts. Run it again
-only if you move the folder. With MSYS2's Python, add `--no-deps --break-system-packages`.
+the code, so updates to the files here (for example after a `git pull`) take effect the next
+time a program starts. Run it again only if you move the folder.
 
 Without installing, keep the `pmds` folder beside the flowgraph and start GNU Radio Companion
 from this folder.
@@ -105,10 +118,10 @@ from this folder.
 ## Checks
 
     python tests/test_pmds.py                    # self-test, no GNU Radio needed
-    python pmds_channel_test.py                  # every propagation preset, 8.6 degrees
-    python pmds_channel_test.py --program bass   # the same with bass-heavy program
-    python pmds_channel_test.py --alert          # how fast alerts show and clear
-    python pmds_check.py pmds_tx.cfile           # decode a recording of the transmitter
+    python examples/pmds_channel_test.py         # every propagation preset, 8.6 degrees
+    python examples/pmds_channel_test.py --program bass  # the same with bass-heavy program
+    python examples/pmds_channel_test.py --alert  # how fast alerts show and clear
+    python examples/pmds_check.py pmds_tx.cfile  # decode a recording of the transmitter
 
 The simulator's presets model medium wave: daytime groundwave, the mush zone (set how strong
 the sky wave is with `--sky-db`), one and two sky hops at night, a disturbed night, and
