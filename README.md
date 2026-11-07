@@ -74,7 +74,9 @@ decoding those tuners already do.
 | `pmds_encoder.py` | The encoder as a GNU Radio block |
 | `pmds_receiver.py` | A mono AM receiver with the PMDS decoder, for an RTL-SDR |
 | `pmds_monitor.py` | A window showing every block and group as it's decoded |
-| `pmds_tuner_ui.py` | A tuner window that shows PMDS data the way an RDS radio does (needs `fm_stereo.py`, not in this repository, for FM) |
+| `pmds_tuner_ui.py` | A tuner window that shows PMDS data the way an RDS radio does |
+| `fm_stereo.py` | The FM stereo receiver the tuner uses on FM |
+| `rx_meters.py` | Audio and signal metering taps for the tuner's monitor |
 | `pmds_channel_test.py` | Offline test: encoder, simulated propagation and noise, decoder |
 | `pmds_check.py` | Decodes a recording of the transmitter |
 | `skywave_channel.py` | The medium-wave propagation simulator |
