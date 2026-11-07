@@ -4759,7 +4759,11 @@ def main():
     ap.add_argument('--record-iq', default=None, help='raw IQ recording, int8 at 2.4 Msps')
     ap.add_argument('--am-source', default='direct_q', choices=('direct_q', 'native', 'upconverter'))
     ap.add_argument('--upconverter-hz', type=float, default=125e6)
+    ap.add_argument('--audio-device', default=None,
+                    help='sound output for GNU Radio, e.g. pulse or plughw:0,0 on Linux (default: system default)')
     a = ap.parse_args()
+    if a.audio_device is not None:
+        os.environ['PMDS_AUDIO_DEVICE'] = a.audio_device
 
     root = tk.Tk()
     scale = a.scale
