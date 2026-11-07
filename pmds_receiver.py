@@ -290,6 +290,7 @@ class PMDSReceiver(gr.top_block):
         self._blank_until = time.monotonic() + self.TUNE_SETTLE_S
         self._wb_seen = time.monotonic()
         self._got_samples = False
+        self._n_in = 0
         self._t_last = time.monotonic()
         self._bw_cur = self.bw
         fr = np.fft.fftshift(np.fft.fftfreq(self.CH_N, 1 / self.ch_rate))
@@ -518,11 +519,18 @@ class PMDSReceiver(gr.top_block):
                 f"Clip     {self.clip_pct:6.3f} %   source: {src}")
 
     # ---------------------------------------------------------------- update
-    def _flow(self):
-        """Samples moved so far by the dongle and by the sound card, for stall reports."""
+    def _samples_in(self):
+        """Samples taken from the dongle so far (by the first filter), or None."""
         try:
-            return (f"dongle {self.src.nitems_written(0)} samples, "
-                    f"sound card {self.audio_sink.nitems_read(0)} samples")
+            return int(self.xlate.nitems_read(0))
+        except Exception:
+            return None
+
+    def _flow(self):
+        """Samples moved so far from the dongle and to the sound card, for stall reports."""
+        try:
+            return (f"from dongle {self.xlate.nitems_read(0)} samples, "
+                    f"to sound card {self.audio_sink.nitems_read(0)} samples")
         except Exception as e:
             return f"counters unavailable ({e})"
 
@@ -533,6 +541,7 @@ class PMDSReceiver(gr.top_block):
         with self._lock:
             self._wb_seen = time.monotonic()
             self._got_samples = False
+            self._n_in = 0
 
     def update_blend(self):
         """Called every ~20 ms by the GUI: measurements, IF bandwidth, stereo."""
@@ -558,6 +567,12 @@ class PMDSReceiver(gr.top_block):
                         self._n0_hz = n0 if self._n0_hz is None else 0.8 * self._n0_hz + 0.2 * n0
                     self.composite_dbfs = 10 * math.log10(max(float(np.mean(np.abs(x) ** 2)), 1e-12))
                     self.clip_pct = 100.0 * float(np.mean((np.abs(x.real) > 0.98) | (np.abs(x.imag) > 0.98)))
+            # alive while samples keep coming in, counted, so a steady signal can't look stalled
+            n_in = self._samples_in()
+            if n_in is not None and n_in > self._n_in:
+                self._n_in = n_in
+                self._wb_seen = now
+                self._got_samples = True
             limit = self.STALL_S if self._got_samples else self.START_S
             if now - self._wb_seen > limit:
                 raise RuntimeError(f"no samples from the dongle for {now - self._wb_seen:.1f} s; "
