@@ -79,6 +79,7 @@ decoding those tuners already do.
 | `rx_meters.py` | Audio and signal metering taps for the tuner's monitor |
 | `pmds_channel_test.py` | Offline test: encoder, simulated propagation and noise, decoder |
 | `pmds_check.py` | Decodes a recording of the transmitter |
+| `pmds_rx_check.py` | Checks the AM receiver's signal chain without the tuner window, and says in plain words which part stops |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
 | `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`) and logos |

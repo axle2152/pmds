@@ -1221,6 +1221,7 @@ class FMStereoReceiver(gr.top_block):
         self._q_hist       = deque(maxlen=self.ATTACK_CONFIRM)
         self._wb_seen      = now              # last time a fresh wideband window arrived
         self._got_samples  = False            # any fresh window since start()
+        self._n_in         = 0                # samples taken from the dongle, at last look
         self._q_log        = deque()          # (t, q_raw) for AGC judging
         self._q_ctrl       = 0.0
         self._q_slow       = 0.0
@@ -1784,11 +1785,18 @@ class FMStereoReceiver(gr.top_block):
     # ------------------------------------------------------------------
     # Control step: call every ~20 ms (any rate works, timing is measured)
     # ------------------------------------------------------------------
-    def _flow(self):
-        """Samples moved so far by the dongle and by the sound card, for stall reports."""
+    def _samples_in(self):
+        """Samples taken from the dongle so far (by the first block after it), or None."""
         try:
-            return (f"dongle {self.src.nitems_written(0)} samples, "
-                    f"sound card {self.audio_sink.nitems_read(0)} samples")
+            return int(self.dc_sub.nitems_read(0))
+        except Exception:
+            return None
+
+    def _flow(self):
+        """Samples moved so far from the dongle and to the sound card, for stall reports."""
+        try:
+            return (f"from dongle {self.dc_sub.nitems_read(0)} samples, "
+                    f"to sound card {self.audio_sink.nitems_read(0)} samples")
         except Exception as e:
             return f"counters unavailable ({e})"
 
@@ -1798,6 +1806,7 @@ class FMStereoReceiver(gr.top_block):
         with self._lock:
             self._wb_seen = time.monotonic()
             self._got_samples = False
+            self._n_in = 0
 
     def update_blend(self):
         with self._lock:
@@ -1810,7 +1819,10 @@ class FMStereoReceiver(gr.top_block):
             new_wb = wb != self._last_wb
             first = self._last_wb is None
             self._last_wb = wb
-            if new_wb and not first:
+            n_in = self._samples_in()                # counted, so a steady signal can't look stalled
+            if (new_wb and not first) or (n_in is not None and n_in > self._n_in):
+                if n_in is not None:
+                    self._n_in = max(self._n_in, n_in)
                 self._wb_seen = now
                 self._got_samples = True
             elif now - self._wb_seen > (self.STALL_S if self._got_samples else self.START_S):
