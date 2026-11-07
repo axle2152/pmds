@@ -79,7 +79,7 @@ decoding those tuners already do.
 | `pmds_check.py` | Decodes a recording of the transmitter |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
-| `docs/` | The draft specification (PDF) and logos |
+| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`) and logos |
 
 ## Two licenses
 
