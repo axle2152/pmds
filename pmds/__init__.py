@@ -24,6 +24,6 @@ from .codec import callsign_to_pi, pi_to_callsign, text_to_codes, codes_to_text
 from .encoder import Encoder
 from .demod import Demodulator
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 __all__ = ['Encoder', 'Demodulator', 'callsign_to_pi', 'pi_to_callsign', 'text_to_codes',
            'codes_to_text']

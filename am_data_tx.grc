@@ -90,7 +90,7 @@ blocks:
     orient: QtCore.Qt.Horizontal
     rangeType: float
     start: '0'
-    step: '1'
+    step: '0.1'
     stop: '45'
     value: '8.6'
     widget: counter_slider
@@ -273,6 +273,26 @@ blocks:
     coordinate: [2000, 568.0]
     rotation: 0
     state: enabled
+- name: sky_db
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: 'Mush zone: sky vs ground (dB)'
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '-30'
+    step: '1'
+    stop: '10'
+    value: '-6'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2000, 640.0]
+    state: enabled
 - name: sky_ipm
   id: variable_qtgui_range
   parameters:
@@ -336,14 +356,17 @@ blocks:
     label3: ''
     label4: ''
     labels: '[''Daytime groundwave'', ''Mush zone (ground + sky)'', ''Night, one sky
-      mode'', ''Night, two sky modes'', ''Night, disturbed'', ''Twilight flutter'']'
+      mode'', ''Night, one + two hops'', ''Night, disturbed'', ''Sunrise / sunset
+      flutter'', ''Shortwave-style mush'', ''Shortwave-style two modes'', ''Shortwave-style
+      disturbed'', ''Shortwave-style flutter'']'
     num_opts: '0'
     option0: '0'
     option1: '1'
     option2: '2'
     option3: '3'
     option4: '4'
-    options: '[''steady'', ''mush'', ''night1'', ''night2'', ''disturbed'', ''flutter'']'
+    options: '[''steady'', ''mush'', ''night1'', ''night2'', ''disturbed'', ''flutter'',
+      ''hf_mush'', ''hf_night2'', ''hf_disturbed'', ''hf_flutter'']'
     orient: Qt.QHBoxLayout
     type: string
     value: night2
@@ -383,48 +406,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [488, 496.0]
-    rotation: 0
-    state: enabled
-- name: tx_freq
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: TX Freq (Hz)
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: int
-    start: '550000'
-    step: '10000'
-    stop: '1700000'
-    value: '1650000'
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [336, 368.0]
-    rotation: 0
-    state: enabled
-- name: tx_freq_fine
-  id: variable_qtgui_range
-  parameters:
-    comment: ''
-    gui_hint: ''
-    label: TX Freq Fine Tune
-    min_len: '200'
-    orient: QtCore.Qt.Horizontal
-    rangeType: int
-    start: '-10000'
-    step: '1'
-    stop: '10000'
-    value: '0'
-    widget: counter_slider
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [496, 360.0]
     rotation: 0
     state: enabled
 - name: tx_gain
@@ -644,7 +625,7 @@ blocks:
       \ blk(Encoder, gr.sync_block):\n    \"\"\"PMDS encoder: RDS-style station data\
       \ on the carrier's phase. Parameters and text\n    sources are described in\
       \ pmds.encoder.\"\"\"\n\n    def __init__(self, samp_rate=192000, data_on=1,\
-      \ deviation=15.0, bit_rate=93.75, fmt='compact',\n                 call='WAMD',\
+      \ deviation=8.6, bit_rate=93.75, fmt='compact',\n                 call='WAMD',\
       \ pi='', pty=4, tp=0, ta=0, ps='AM 1710', ps_upper=1, ps_file='',\n        \
       \         rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,\n\
       \                 facility_id=0, af='', isrc='', ext_every=8,\n            \
@@ -686,13 +667,13 @@ blocks:
     rt_every: '1'
     rt_file: ''''''
     rt_len: '64'
-    rt_program: '''C:/Users/korn3/Documents/rt_nowplaying.txt'''
+    rt_program: ''''''
     samp_rate: samp_rate
     ta: '0'
     tp: '0'
   states:
     _io_cache: '(''PMDS Encoder'', ''blk'', [(''samp_rate'', ''192000''), (''data_on'',
-      ''1''), (''deviation'', ''15.0''), (''bit_rate'', ''93.75''), (''fmt'', "''compact''"),
+      ''1''), (''deviation'', ''8.6''), (''bit_rate'', ''93.75''), (''fmt'', "''compact''"),
       (''call'', "''WAMD''"), (''pi'', "''''"), (''pty'', ''4''), (''tp'', ''0''),
       (''ta'', ''0''), (''ps'', "''AM 1710''"), (''ps_upper'', ''1''), (''ps_file'',
       "''''"), (''rt'', "''''"), (''rt_file'', "''C:/RadioDJv2/Now_Playing.txt''"),
@@ -701,7 +682,7 @@ blocks:
       "''This is a test of the AM data alert flag. This is only a test.''"), (''alert_file'',
       "''''"), (''rt_program'', "''''")], [(''0'', ''complex'', 1)], [(''0'', ''complex'',
       1)], "PMDS encoder: RDS-style station data on the carrier''s phase. Parameters
-      and text\nsources are described in pmds.encoder.", [''af'', ''alert'', ''alert_file'',
+      and text\n    sources are described in pmds.encoder.", [''af'', ''alert'', ''alert_file'',
       ''alert_text'', ''bit_rate'', ''call'', ''data_on'', ''deviation'', ''ext_every'',
       ''facility_id'', ''fmt'', ''isrc'', ''pi'', ''ps'', ''ps_file'', ''ps_upper'',
       ''pty'', ''rt'', ''rt_every'', ''rt_file'', ''rt_len'', ''rt_program'', ''samp_rate'',
@@ -732,27 +713,46 @@ blocks:
       \ spectrum;\n               the spread is the two-sided width 2*sigma, as in\
       \ Watterson / ITU-R F.1487\nPath levels are relative; the total is normalised\
       \ so the mean received carrier power is 1,\nwhich is what cn_db (carrier to\
-      \ noise in 10 kHz) is measured against.\n\nPresets (starting points borrowed\
-      \ from HF practice until real MW recordings calibrate them):\n  steady     daytime\
-      \ groundwave                   0 dB / 0 ms / 0 Hz\n  mush       groundwave +\
-      \ skywave, equal          0/0/0  +  0 dB / 0.7 ms / 0.6 Hz\n  night1     one\
-      \ sky mode, slow fades             0 dB / 0 ms / 0.2 Hz\n  night2     two sky\
-      \ modes                        0/0/0.6  +  -2 dB / 1.5 ms / 0.6 Hz\n  disturbed\
-      \  two equal modes, faster              0/0/1.0  +   0 dB / 2.0 ms / 1.0 Hz\n\
-      \  flutter    one mode, twilight flutter           0 dB / 0 ms / 2.0 Hz\n  custom\
-      \     path_db / path_ms / path_spread lists\n\nTransmitter IPM (ipm_deg > 0):\
-      \ incidental phase modulation that follows the program, applied\nbefore propagation\
-      \ as phase = ipm_deg * (envelope - 1) / 0.95, so ipm_deg is the peak phase at\n\
-      95% modulation (the way transmitter specs quote it). Memoryless: a first approximation\
-      \ of a\ntransmitter whose tuning turns amplitude into phase. 1 deg is a modern\
-      \ solid-state transmitter,\n3 deg a fair older one, 6-10 deg one that badly\
-      \ needs neutralizing.\n\nNoise: cn_db < 99 adds white noise.  enable = 0 passes\
-      \ the signal through untouched.\n(For other stations on or near the channel,\
-      \ add real IQ recordings to the flowgraph instead.)\n\"\"\"\nimport math\n\n\
-      import numpy as np\nfrom gnuradio import gr\n\nPRESETS = {\n    'steady':  \
-      \  [(0.0, 0.0, 0.0)],\n    'mush':      [(0.0, 0.0, 0.0), (0.0, 0.7, 0.6)],\n\
-      \    'night1':    [(0.0, 0.0, 0.2)],\n    'night2':    [(0.0, 0.0, 0.6), (-2.0,\
-      \ 1.5, 0.6)],\n    'disturbed': [(0.0, 0.0, 1.0), (0.0, 2.0, 1.0)],\n    'flutter':\
+      \ noise in 10 kHz) is measured against.\n\nMedium-wave presets (estimates from\
+      \ MW geometry and fading rates, until night recordings\ncalibrate them):\n \
+      \ steady     daytime groundwave                   0 dB / 0 ms / 0 Hz\n  mush\
+      \       groundwave + skywave                 0/0/0  +  sky_db / 0.33 ms / 0.1\
+      \ Hz\n  night1     one sky mode                         0 dB / 0 ms / 0.1 Hz\n\
+      \  night2     one-hop + two-hop sky                0/0/0.1  +  -3 dB / 0.2 ms\
+      \ / 0.1 Hz\n  disturbed  two equal modes, faster              0/0/0.3  +   0\
+      \ dB / 0.3 ms / 0.3 Hz\n  flutter    one mode, sunrise/sunset             0\
+      \ dB / 0 ms / 0.5 Hz\n  custom     path_db / path_ms / path_spread lists\nThe\
+      \ earlier presets, borrowed from shortwave practice (around 5 MHz), stay available\
+      \ as\nhf_mush, hf_night1, hf_night2, hf_disturbed and hf_flutter, so older results\
+      \ can be rerun.\n\nWhere the MW numbers come from: at night the D layer is gone\
+      \ and MW reflects off the E layer,\nabout 100 km up. The extra path of the sky\
+      \ wave over the ground wave is\n2*sqrt((d/2)^2 + h^2) - d, so 0.67 ms near the\
+      \ transmitter, 0.33 ms at 150 km (a typical mush\nzone) and less beyond; one\
+      \ hop against two hops at 1000 km differs by about 0.2 ms. MW night\nfades come\
+      \ every few seconds to tens of seconds, a Doppler spread around 0.1 Hz; faster\
+      \ when\nthe ionosphere is disturbed and around sunrise and sunset.\n\nsky_db\
+      \ (mush only): sky wave level relative to the ground wave, in dB. Well inside\
+      \ a strong\nstation's coverage the sky wave is weak (-20 dB or so) but still\
+      \ enough to upset the audio;\n0 dB is the middle of the mush zone; above 0 the\
+      \ sky wave wins.\n\nTransmitter IPM (ipm_deg > 0): incidental phase modulation\
+      \ that follows the program, applied\nbefore propagation as phase = ipm_deg *\
+      \ (envelope - 1) / 0.95, so ipm_deg is the peak phase at\n95% modulation (the\
+      \ way transmitter specs quote it). Memoryless: a first approximation of a\n\
+      transmitter whose tuning turns amplitude into phase. 1 deg is a modern solid-state\
+      \ transmitter,\n3 deg a fair older one, 6-10 deg one that badly needs neutralizing.\n\
+      \nNoise: cn_db < 99 adds white noise.  enable = 0 passes the signal through\
+      \ untouched.\n(For other stations on or near the channel, add real IQ recordings\
+      \ to the flowgraph instead.)\n\"\"\"\nimport math\n\nimport numpy as np\nfrom\
+      \ gnuradio import gr\n\nMUSH_MS, MUSH_SPREAD = 0.33, 0.1      # sky wave delay\
+      \ and Doppler spread in the mush preset\n\nPRESETS = {\n    'steady':      \
+      \ [(0.0, 0.0, 0.0)],\n    'mush':         None,                            \
+      \       # built from sky_db, see paths()\n    'night1':       [(0.0, 0.0, 0.1)],\n\
+      \    'night2':       [(0.0, 0.0, 0.1), (-3.0, 0.2, 0.1)],\n    'disturbed':\
+      \    [(0.0, 0.0, 0.3), (0.0, 0.3, 0.3)],\n    'flutter':      [(0.0, 0.0, 0.5)],\n\
+      \    # shortwave-style presets used for the PMDS draft 0.1 and 0.2 results\n\
+      \    'hf_mush':      [(0.0, 0.0, 0.0), (0.0, 0.7, 0.6)],\n    'hf_night1': \
+      \   [(0.0, 0.0, 0.2)],\n    'hf_night2':    [(0.0, 0.0, 0.6), (-2.0, 1.5, 0.6)],\n\
+      \    'hf_disturbed': [(0.0, 0.0, 1.0), (0.0, 2.0, 1.0)],\n    'hf_flutter':\
       \   [(0.0, 0.0, 2.0)],\n}\n\n\nclass _Slow:\n    \"\"\"A slowly varying process\
       \ made at a low rate and linearly interpolated to the\n    signal rate. Fixed-size\
       \ chunks, so the result doesn't depend on work() sizes.\"\"\"\n    CHUNK = 256\n\
@@ -780,22 +780,25 @@ blocks:
       \    h = np.exp(-0.5 * (t / sig_t) ** 2)\n    return _Slow(rate, h / math.sqrt(np.sum(h\
       \ * h)), rng, True)\n\n\nclass blk(gr.sync_block):\n    def __init__(self, samp_rate=192000,\
       \ enable=1, preset='night2',\n                 path_db=[0.0], path_ms=[0.0],\
-      \ path_spread=[0.0], cn_db=40.0, ipm_deg=0.0, seed=1):\n        gr.sync_block.__init__(self,\
-      \ name='Skywave Channel',\n                               in_sig=[np.complex64],\
-      \ out_sig=[np.complex64])\n        self.samp_rate = samp_rate\n        self.enable\
-      \ = enable\n        self.preset = preset\n        self.path_db = path_db\n \
-      \       self.path_ms = path_ms\n        self.path_spread = path_spread\n   \
-      \     self.cn_db = cn_db\n        self.ipm_deg = ipm_deg\n        self.seed\
-      \ = seed\n        self.quiet = False\n        self._key = None\n        self._n\
-      \ = 0\n\n    # ---- configuration ----\n    def paths(self):\n        if self.preset\
-      \ in PRESETS:\n            return PRESETS[self.preset]\n        return [(float(d),\
-      \ float(m), float(s)) for d, m, s in\n                zip(self.path_db, self.path_ms,\
-      \ self.path_spread)] or PRESETS['steady']\n\n    def _build(self):\n       \
-      \ fs, seed = float(self.samp_rate), int(self.seed)\n        paths = self.paths()\n\
-      \        lin = [10 ** (d / 10) for d, _, _ in paths]\n        tot = sum(lin)\n\
-      \        self._paths = []\n        for i, ((db, ms, spread), p) in enumerate(zip(paths,\
-      \ lin)):\n            D = int(round(ms * 1e-3 * fs))\n            fad = _fading(spread,\
-      \ np.random.default_rng([seed, i])) if spread > 0 else None\n            self._paths.append((math.sqrt(p\
+      \ path_spread=[0.0], cn_db=40.0, ipm_deg=0.0, seed=1,\n                 sky_db=-6.0):\n\
+      \        gr.sync_block.__init__(self, name='Skywave Channel',\n            \
+      \                   in_sig=[np.complex64], out_sig=[np.complex64])\n       \
+      \ self.samp_rate = samp_rate\n        self.enable = enable\n        self.preset\
+      \ = preset\n        self.path_db = path_db\n        self.path_ms = path_ms\n\
+      \        self.path_spread = path_spread\n        self.cn_db = cn_db\n      \
+      \  self.ipm_deg = ipm_deg\n        self.seed = seed\n        self.sky_db = sky_db\n\
+      \        self.quiet = False\n        self._key = None\n        self._n = 0\n\
+      \n    # ---- configuration ----\n    def paths(self):\n        if self.preset\
+      \ == 'mush':\n            return [(0.0, 0.0, 0.0), (float(self.sky_db), MUSH_MS,\
+      \ MUSH_SPREAD)]\n        if self.preset in PRESETS:\n            return PRESETS[self.preset]\n\
+      \        return [(float(d), float(m), float(s)) for d, m, s in\n           \
+      \     zip(self.path_db, self.path_ms, self.path_spread)] or PRESETS['steady']\n\
+      \n    def _build(self):\n        fs, seed = float(self.samp_rate), int(self.seed)\n\
+      \        paths = self.paths()\n        lin = [10 ** (d / 10) for d, _, _ in\
+      \ paths]\n        tot = sum(lin)\n        self._paths = []\n        for i, ((db,\
+      \ ms, spread), p) in enumerate(zip(paths, lin)):\n            D = int(round(ms\
+      \ * 1e-3 * fs))\n            fad = _fading(spread, np.random.default_rng([seed,\
+      \ i])) if spread > 0 else None\n            self._paths.append((math.sqrt(p\
       \ / tot), D, fad))\n        self._maxd = max(D for _, D, _ in self._paths)\n\
       \        self._hist = np.zeros(self._maxd, np.complex64)\n        self._noise\
       \ = np.random.default_rng([seed, 100])\n        self._key = self._config_key()\n\
@@ -803,25 +806,25 @@ blocks:
       \ ', '.join(\n                '%+g dB / %g ms / %g Hz' % p for p in paths)),\
       \ flush=True)\n\n    def _config_key(self):\n        return (self.preset, tuple(self.path_db),\
       \ tuple(self.path_ms), tuple(self.path_spread),\n                int(self.seed),\
-      \ float(self.samp_rate))\n\n    # ---- signal ----\n    def work(self, input_items,\
-      \ output_items):\n        x, out = input_items[0], output_items[0]\n       \
-      \ n = len(x)\n        if not int(self.enable):\n            out[:] = x\n   \
-      \         self._n += n\n            return n\n        if self._key != self._config_key():\n\
-      \            self._build()\n        fs = float(self.samp_rate)\n        idx\
-      \ = self._n + np.arange(n)\n        ipm = float(self.ipm_deg)\n        if ipm:\
-      \                                        # transmitter: amplitude turned into\
-      \ phase\n            x = x * np.exp(1j * math.radians(ipm) / 0.95 * (np.abs(x)\
-      \ - 1.0)).astype(np.complex64)\n        ext = np.concatenate((self._hist, x))\
-      \ if self._maxd else x\n        y = np.zeros(n, np.complex128)\n        for\
-      \ amp, D, fad in self._paths:\n            seg = ext[self._maxd - D:self._maxd\
-      \ - D + n]\n            y += amp * seg if fad is None else amp * fad.at(idx\
-      \ * (fad.rate / fs)) * seg\n        if self._maxd:\n            self._hist =\
-      \ ext[len(ext) - self._maxd:]\n\n        cn = float(self.cn_db)\n        if\
-      \ cn < 99:\n            sd = math.sqrt(fs / (10 ** (cn / 10) * 1e4) / 2)\n \
-      \           w = self._noise.standard_normal(2 * n)        # one draw per call:\
-      \ same noise for any work() size\n            y += sd * (w[0::2] + 1j * w[1::2])\n\
-      \        out[:] = y.astype(np.complex64)\n        self._n += n\n        return\
-      \ n\n"
+      \ float(self.samp_rate), float(self.sky_db))\n\n    # ---- signal ----\n   \
+      \ def work(self, input_items, output_items):\n        x, out = input_items[0],\
+      \ output_items[0]\n        n = len(x)\n        if not int(self.enable):\n  \
+      \          out[:] = x\n            self._n += n\n            return n\n    \
+      \    if self._key != self._config_key():\n            self._build()\n      \
+      \  fs = float(self.samp_rate)\n        idx = self._n + np.arange(n)\n      \
+      \  ipm = float(self.ipm_deg)\n        if ipm:                              \
+      \          # transmitter: amplitude turned into phase\n            x = x * np.exp(1j\
+      \ * math.radians(ipm) / 0.95 * (np.abs(x) - 1.0)).astype(np.complex64)\n   \
+      \     ext = np.concatenate((self._hist, x)) if self._maxd else x\n        y\
+      \ = np.zeros(n, np.complex128)\n        for amp, D, fad in self._paths:\n  \
+      \          seg = ext[self._maxd - D:self._maxd - D + n]\n            y += amp\
+      \ * seg if fad is None else amp * fad.at(idx * (fad.rate / fs)) * seg\n    \
+      \    if self._maxd:\n            self._hist = ext[len(ext) - self._maxd:]\n\n\
+      \        cn = float(self.cn_db)\n        if cn < 99:\n            sd = math.sqrt(fs\
+      \ / (10 ** (cn / 10) * 1e4) / 2)\n            w = self._noise.standard_normal(2\
+      \ * n)        # one draw per call: same noise for any work() size\n        \
+      \    y += sd * (w[0::2] + 1j * w[1::2])\n        out[:] = y.astype(np.complex64)\n\
+      \        self._n += n\n        return n\n"
     affinity: ''
     alias: ''
     cn_db: sky_cn
@@ -836,12 +839,13 @@ blocks:
     preset: sky_preset
     samp_rate: samp_rate
     seed: '1'
+    sky_db: sky_db
   states:
     _io_cache: ('Skywave Channel', 'blk', [('samp_rate', '192000'), ('enable', '1'),
       ('preset', "'night2'"), ('path_db', '[0.0]'), ('path_ms', '[0.0]'), ('path_spread',
-      '[0.0]'), ('cn_db', '40.0'), ('ipm_deg', '0.0'), ('seed', '1')], [('0', 'complex',
-      1)], [('0', 'complex', 1)], '', ['cn_db', 'enable', 'ipm_deg', 'path_db', 'path_ms',
-      'path_spread', 'preset', 'samp_rate', 'seed'])
+      '[0.0]'), ('cn_db', '40.0'), ('ipm_deg', '0.0'), ('seed', '1'), ('sky_db', '-6.0')],
+      [('0', 'complex', 1)], [('0', 'complex', 1)], '', ['cn_db', 'enable', 'ipm_deg',
+      'path_db', 'path_ms', 'path_spread', 'preset', 'samp_rate', 'seed', 'sky_db'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -1091,7 +1095,7 @@ blocks:
     alias: ''
     amp: 'False'
     bandwidth: '0'
-    center_freq: tx_freq+tx_freq_fine
+    center_freq: '1650000'
     comment: ''
     dev_args: ''
     samp_rate: (samp_rate*125)/12

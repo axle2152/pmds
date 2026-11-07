@@ -21,14 +21,28 @@ Each propagation path is (level dB, delay ms, Doppler spread Hz):
 Path levels are relative; the total is normalised so the mean received carrier power is 1,
 which is what cn_db (carrier to noise in 10 kHz) is measured against.
 
-Presets (starting points borrowed from HF practice until real MW recordings calibrate them):
+Medium-wave presets (estimates from MW geometry and fading rates, until night recordings
+calibrate them):
   steady     daytime groundwave                   0 dB / 0 ms / 0 Hz
-  mush       groundwave + skywave, equal          0/0/0  +  0 dB / 0.7 ms / 0.6 Hz
-  night1     one sky mode, slow fades             0 dB / 0 ms / 0.2 Hz
-  night2     two sky modes                        0/0/0.6  +  -2 dB / 1.5 ms / 0.6 Hz
-  disturbed  two equal modes, faster              0/0/1.0  +   0 dB / 2.0 ms / 1.0 Hz
-  flutter    one mode, twilight flutter           0 dB / 0 ms / 2.0 Hz
+  mush       groundwave + skywave                 0/0/0  +  sky_db / 0.33 ms / 0.1 Hz
+  night1     one sky mode                         0 dB / 0 ms / 0.1 Hz
+  night2     one-hop + two-hop sky                0/0/0.1  +  -3 dB / 0.2 ms / 0.1 Hz
+  disturbed  two equal modes, faster              0/0/0.3  +   0 dB / 0.3 ms / 0.3 Hz
+  flutter    one mode, sunrise/sunset             0 dB / 0 ms / 0.5 Hz
   custom     path_db / path_ms / path_spread lists
+The earlier presets, borrowed from shortwave practice (around 5 MHz), stay available as
+hf_mush, hf_night1, hf_night2, hf_disturbed and hf_flutter, so older results can be rerun.
+
+Where the MW numbers come from: at night the D layer is gone and MW reflects off the E layer,
+about 100 km up. The extra path of the sky wave over the ground wave is
+2*sqrt((d/2)^2 + h^2) - d, so 0.67 ms near the transmitter, 0.33 ms at 150 km (a typical mush
+zone) and less beyond; one hop against two hops at 1000 km differs by about 0.2 ms. MW night
+fades come every few seconds to tens of seconds, a Doppler spread around 0.1 Hz; faster when
+the ionosphere is disturbed and around sunrise and sunset.
+
+sky_db (mush only): sky wave level relative to the ground wave, in dB. Well inside a strong
+station's coverage the sky wave is weak (-20 dB or so) but still enough to upset the audio;
+0 dB is the middle of the mush zone; above 0 the sky wave wins.
 
 Transmitter IPM (ipm_deg > 0): incidental phase modulation that follows the program, applied
 before propagation as phase = ipm_deg * (envelope - 1) / 0.95, so ipm_deg is the peak phase at
@@ -44,13 +58,21 @@ import math
 import numpy as np
 from gnuradio import gr
 
+MUSH_MS, MUSH_SPREAD = 0.33, 0.1      # sky wave delay and Doppler spread in the mush preset
+
 PRESETS = {
-    'steady':    [(0.0, 0.0, 0.0)],
-    'mush':      [(0.0, 0.0, 0.0), (0.0, 0.7, 0.6)],
-    'night1':    [(0.0, 0.0, 0.2)],
-    'night2':    [(0.0, 0.0, 0.6), (-2.0, 1.5, 0.6)],
-    'disturbed': [(0.0, 0.0, 1.0), (0.0, 2.0, 1.0)],
-    'flutter':   [(0.0, 0.0, 2.0)],
+    'steady':       [(0.0, 0.0, 0.0)],
+    'mush':         None,                                   # built from sky_db, see paths()
+    'night1':       [(0.0, 0.0, 0.1)],
+    'night2':       [(0.0, 0.0, 0.1), (-3.0, 0.2, 0.1)],
+    'disturbed':    [(0.0, 0.0, 0.3), (0.0, 0.3, 0.3)],
+    'flutter':      [(0.0, 0.0, 0.5)],
+    # shortwave-style presets used for the PMDS draft 0.1 and 0.2 results
+    'hf_mush':      [(0.0, 0.0, 0.0), (0.0, 0.7, 0.6)],
+    'hf_night1':    [(0.0, 0.0, 0.2)],
+    'hf_night2':    [(0.0, 0.0, 0.6), (-2.0, 1.5, 0.6)],
+    'hf_disturbed': [(0.0, 0.0, 1.0), (0.0, 2.0, 1.0)],
+    'hf_flutter':   [(0.0, 0.0, 2.0)],
 }
 
 
@@ -103,7 +125,8 @@ def _fading(spread_hz, rng, rate=100.0):
 
 class blk(gr.sync_block):
     def __init__(self, samp_rate=192000, enable=1, preset='night2',
-                 path_db=[0.0], path_ms=[0.0], path_spread=[0.0], cn_db=40.0, ipm_deg=0.0, seed=1):
+                 path_db=[0.0], path_ms=[0.0], path_spread=[0.0], cn_db=40.0, ipm_deg=0.0, seed=1,
+                 sky_db=-6.0):
         gr.sync_block.__init__(self, name='Skywave Channel',
                                in_sig=[np.complex64], out_sig=[np.complex64])
         self.samp_rate = samp_rate
@@ -115,12 +138,15 @@ class blk(gr.sync_block):
         self.cn_db = cn_db
         self.ipm_deg = ipm_deg
         self.seed = seed
+        self.sky_db = sky_db
         self.quiet = False
         self._key = None
         self._n = 0
 
     # ---- configuration ----
     def paths(self):
+        if self.preset == 'mush':
+            return [(0.0, 0.0, 0.0), (float(self.sky_db), MUSH_MS, MUSH_SPREAD)]
         if self.preset in PRESETS:
             return PRESETS[self.preset]
         return [(float(d), float(m), float(s)) for d, m, s in
@@ -146,7 +172,7 @@ class blk(gr.sync_block):
 
     def _config_key(self):
         return (self.preset, tuple(self.path_db), tuple(self.path_ms), tuple(self.path_spread),
-                int(self.seed), float(self.samp_rate))
+                int(self.seed), float(self.samp_rate), float(self.sky_db))
 
     # ---- signal ----
     def work(self, input_items, output_items):

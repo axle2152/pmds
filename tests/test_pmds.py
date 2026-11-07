@@ -17,6 +17,8 @@ PMDS self-test, no GNU Radio needed:  python tests/test_pmds.py   (or pytest)
                1 or 2 bit errors; all-ones is not a valid block
   vectors      the blocks in Appendix A of the draft specification
   loopback     Encoder -> Demodulator on a clean carrier gives back PI, PS and RadioText
+  slips        with samples dropped now and then, the framer follows the slip and keeps decoding
+  alerts       an emergency alert shows from RadioText groups alone, and clears when it ends
 """
 import itertools
 import os
@@ -40,6 +42,7 @@ def _vectors():
         ('core alert', codec.core_group(pi, 31, 0, 0, 1, 0, WAMD_PS, 1), ('2AF1FCA007D7', '20A690188702')),
         ('RT seg 0', codec.rt_group(0, 0, rt[0]), ('02432B6360CA', '379610208309')),
         ('RT seg 1', codec.rt_group(1, 0, rt[1]), ('1269039308ED', '3234B7868111')),
+        ('RT seg 0, emergency', codec.rt_group(0, 0, rt[0], 2), ('02432B6360CA', '379610209297')),
         ('station ID', codec.ext_station(73977), ('000907CD0177', '000000000007')),
         ('AF list', codec.ext_af([codec.af_code(95.5), codec.af_code(750)]), ('0A2845C00268', '000000000007')),
         ('ISRC', codec.ext_isrc('USRC17607839'), ('2524D980CEFE', '40F4F8000547')),
@@ -82,7 +85,51 @@ def test_loopback():
     assert d.compact.counts['lost'] == 0 and d.compact.counts['fixed'] == 0, d.compact.counts
 
 
+def test_slips():
+    fs = 6000
+    e = Encoder(samp_rate=fs, deviation=8.6, call='WAMD', ps='AM 1650', rt='Slip test', rt_file='')
+    e.quiet = True
+    y = e.modulate(np.ones(120 * fs, np.complex64))       # 2 minutes
+    rng = np.random.default_rng(3)
+    parts, i = [], 0
+    while i < len(y):                                     # drop 5 to 300 samples every 4 to 8 s
+        j = min(len(y), i + int(rng.uniform(4, 8) * fs))
+        parts.append(y[i:j])
+        i = j + int(rng.integers(5, 300))
+    z = np.concatenate(parts)
+    got = {}
+    for slip in (False, True):
+        d = Demodulator(fs, 93.75)
+        d.compact.SLIP_SEARCH = d.rbds.SLIP_SEARCH = slip
+        for k in range(0, len(z), 3000):
+            d.process(z[k:k + 3000])
+        got[slip] = (d.compact.groups, d.compact.slips_found)
+        assert d.ps == 'AM 1650 ' and d.rt == 'Slip test', (slip, d.ps, d.rt)
+    assert got[True][1] > 0 and got[False][1] == 0, got
+    assert got[True][0] > 1.3 * got[False][0], got     # following slips keeps far more groups
+
+
+def test_alert_in_rt():
+    # core groups only every 4th slot here, so most groups seen are RadioText
+    fs = 6000
+    e = Encoder(samp_rate=fs, call='WAMD', ps='AM 1650', rt='x', rt_file='', rt_every=3, alert=2,
+                alert_text='Tornado warning for Fulton County until 9 PM.')
+    e.quiet = True
+    d = Demodulator(fs, 93.75)
+    seen = []
+    d.log = lambda fr, kind, f: seen.append((kind, f.get('alert'))) if fr.fmt == 'compact' else None
+    for _ in range(20):
+        d.process(e.modulate(np.ones(fs, np.complex64)))
+    assert d.compact.alert == 2, d.compact.alert
+    assert ('rt', 2) in seen, seen[:6]
+    assert d.rt.startswith('Tornado warning'), d.rt
+    e.alert = 0
+    for _ in range(10):
+        d.process(e.modulate(np.ones(fs, np.complex64)))
+    assert d.compact.alert == 0
+
+
 if __name__ == '__main__':
-    for t in (test_check_code, test_vectors, test_loopback):
+    for t in (test_check_code, test_vectors, test_loopback, test_slips, test_alert_in_rt):
         t()
         print('ok  ', t.__name__)

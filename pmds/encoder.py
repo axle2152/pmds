@@ -24,7 +24,8 @@ Physical layer
   bit_rate  : 23.4375, 46.875, 93.75 or 187.5 bit/s; samp_rate / bit_rate must be whole
   deviation : peak phase in degrees
 
-Chosen operating point: compact framing, 93.75 bit/s, 15 deg (the defaults). The other rates
+Chosen operating point: compact framing, 93.75 bit/s, 8.6 deg (the defaults). 8.6 deg keeps
+the synchronous-detector tone 45 dB below 100% modulation. The other rates
 and the RBDS-native framing ('rbds') stay available for comparison on the bench. Group
 layouts are in pmds.codec.
 
@@ -55,7 +56,7 @@ class Encoder:
     """PMDS encoder. Same parameters as the GNU Radio block. start() begins polling the text
     files, modulate(x) adds the data to each run of samples, stop() ends the polling."""
 
-    def __init__(self, samp_rate=192000, data_on=1, deviation=15.0, bit_rate=93.75, fmt='compact',
+    def __init__(self, samp_rate=192000, data_on=1, deviation=8.6, bit_rate=93.75, fmt='compact',
                  call='WAMD', pi='', pty=4, tp=0, ta=0, ps='AM 1710', ps_upper=1, ps_file='',
                  rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,
                  facility_id=0, af='', isrc='', ext_every=8,
@@ -325,7 +326,7 @@ class Encoder:
         segs = rt_segments(self._rt_codes(), self.rt_len)
         if segs and int(self.rt_every) > 0 and self._slot % (int(self.rt_every) + 1) == int(self.rt_every):
             self._seg %= len(segs)
-            kind, blocks = 'rt%d' % self._seg, rt_group(self._seg, self._ab, segs[self._seg])
+            kind, blocks = 'rt%d' % self._seg, rt_group(self._seg, self._ab, segs[self._seg], level)
             self._seg += 1
             if self._seg >= len(segs):                     # a whole pass of the text
                 self._passes += 1

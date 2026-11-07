@@ -34,6 +34,8 @@ class Framer:
     """Block sync, single-bit correction and group parsing for one framing. Read the public
     fields from any thread; the stats copy their deques before reading them."""
     LOSE_SYNC = (7, 10)       # 7 bad blocks out of the last 10: start looking again
+    SLIP_SEARCH = True        # while in sync, watch for blocks that have slipped off the boundaries
+    SLIP_AFTER = 2            # lost blocks in a row before a slipped position may take over
     ALERT_HOLD = 20.0         # an alert nobody has confirmed for this long times out (seconds)
     fmt, N = '', 0
 
@@ -47,6 +49,7 @@ class Framer:
         self.mask = (1 << self.N) - 1
         self.reg, self.nb = 0, 0
         self.synced, self.cands, self.next_nb, self.held = False, {}, 0, None
+        self.slips, self.slips_found = {}, 0     # clean blocks seen off the boundaries; slips followed
         self.results = deque(maxlen=50)          # recent blocks in sync: 0 clean, 1 fixed, 2 lost
         self.block_log = deque(maxlen=600)       # (time, 'clean' | 'fixed' | 'lost' | 'sync' | 'nosync')
         self.counts = {'clean': 0, 'fixed': 0, 'lost': 0}
@@ -79,6 +82,9 @@ class Framer:
 
     def snr_db(self):
         return self.dec.snr_db()
+
+    def cn_db(self):
+        return self.dec.cn_db()
 
     def rate(self):
         now = self.now()
@@ -142,6 +148,8 @@ class Framer:
                 del self.cands[k]
             return
         if nb < self.next_nb:
+            if self.SLIP_SEARCH and self.held is None:
+                self._slip_hunt(nb, kind, reg)
             return
         self.next_nb = nb + self.N
         want = self._expect or tuple(self.KIND.values())
@@ -171,6 +179,35 @@ class Framer:
         if len(recent) >= of and sum(1 for x in recent if x == 2) >= bad:
             self._sync(False)
             self.held, self.cands, self._expect, self._group = None, {}, None, {}
+
+    def _lost_run(self):
+        n = 0
+        for x in reversed(self.results):
+            if x != 2:
+                break
+            n += 1
+        return n
+
+    def _slip_hunt(self, nb, kind, reg):
+        """In sync, keep checking the positions between the block boundaries. When the receiver
+        drops or gains samples, the bits slip: blocks at the old boundaries fail while clean
+        ones turn up at a new position. After SLIP_AFTER lost blocks in a row, two clean blocks
+        N bits apart, in a legal order, move sync there (still held until the next block checks
+        out, as at acquisition), instead of waiting for LOSE_SYNC and searching from scratch."""
+        if kind:
+            prev = self.slips.get(nb - self.N)
+            if prev and kind in self.after(prev[0]) and self._lost_run() >= self.SLIP_AFTER:
+                self.next_nb = nb + self.N
+                self.held = [prev, (kind, reg >> self.K)]
+                self._expect = self.after(kind)
+                self._group = {}
+                self.slips.clear()
+                self.slips_found += 1
+                self.block_log.append((self.now(), 'slip'))
+                return
+            self.slips[nb] = (kind, reg >> self.K)
+        for k in [k for k in self.slips if k <= nb - self.N]:
+            del self.slips[k]
 
     # ---- groups: the parts both framings share ----
     def _station(self, pi, fixed):
@@ -282,11 +319,12 @@ class CompactFramer(Framer):
             self._log('core', dict(pi=pi, seg=seg, half=half, fixed=fixed, ps=self.ps, pty=pty,
                                    tp=(d1 >> 14) & 1, ta=(d1 >> 13) & 1, alert=flag, tier=0))
         elif kind == 'rt':
-            seg, ab = (d1 >> 33) & 7, (d1 >> 32) & 1
+            seg, ab, level = (d1 >> 33) & 7, (d1 >> 32) & 1, d2 & 3
             codes = _bytes(d1, 4) + _bytes(d2 >> 4, 4)
             self._rt(seg, ab, codes, 8)
             self._tags()
-            self._log('rt', dict(seg=seg, ab=ab, fixed=fixed, text=_text(codes), rt=self.rt))
+            self._alert_seen(level in (1, 2), level, fixed)
+            self._log('rt', dict(seg=seg, ab=ab, fixed=fixed, text=_text(codes), rt=self.rt, alert=level))
         elif kind == 'ext':
             self._ext((d1 >> 32) & 15, ((d1 & 0xFFFFFFFF) << 36) | d2, fixed)
         else:

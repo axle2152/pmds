@@ -42,7 +42,7 @@ class blk(Encoder, gr.sync_block):
     """PMDS encoder: RDS-style station data on the carrier's phase. Parameters and text
     sources are described in pmds.encoder."""
 
-    def __init__(self, samp_rate=192000, data_on=1, deviation=15.0, bit_rate=93.75, fmt='compact',
+    def __init__(self, samp_rate=192000, data_on=1, deviation=8.6, bit_rate=93.75, fmt='compact',
                  call='WAMD', pi='', pty=4, tp=0, ta=0, ps='AM 1710', ps_upper=1, ps_file='',
                  rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,
                  facility_id=0, af='', isrc='', ext_every=8,

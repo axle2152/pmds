@@ -21,8 +21,9 @@ The carrier's phase is measured against a local carrier reference (averaged over
 bits, so fading faster than the 1 Hz PLL can follow is taken out, and the program's own AM
 doesn't multiply what's left), then a matched filter for the one-sine-per-bit biphase, bit
 timing from the phase with the most matched-filter energy (tracks clock drift between the
-transmitter and the receiver), then block sync on the offset words, single-bit correction
-where the block type is known, and the group fields, for both framings (pmds.framer).
+transmitter and the receiver), then block sync on the offset words (following bit slips from
+dropped samples or timing jumps), single-bit correction where the block type is known, and
+the group fields, for both framings (pmds.framer). cn_db() gives the C/N the data sees.
 set_strict(True) turns the correction off.
 """
 import math
@@ -72,6 +73,7 @@ class Demodulator:
         self._zh = np.zeros(self._L, np.complex128)
         self._E = np.zeros(self.spb)              # matched-filter energy at each timing phase
         self._best, self._n, self._last = 0, 0, -10 ** 9
+        self._t = None                                # time of the bit being decided, if any
         self._amp, self._var = 0.0, 1.0
         for f in self.framers:
             f.reset()
@@ -104,13 +106,25 @@ class Demodulator:
         return self.best().fixed()
 
     def now(self):
-        return self._n / self.fs
+        """Seconds of signal so far; while bits are being decided, the time of the bit itself."""
+        t = self._t
+        return t if t is not None else self._n / self.fs
 
     def dev_deg(self):
         return math.degrees(self._amp)
 
     def snr_db(self):
         return 10 * math.log10(max(self._amp ** 2, 1e-12) / max(self._var, 1e-12))
+
+    def cn_db(self):
+        """Carrier-to-noise in 10 kHz as the data sees it, worked back from the data SNR:
+        noise inside the data's own band counts, a quiet band elsewhere doesn't. The data SNR
+        is C/N (10 kHz) + 20 log10(deviation in rad) + 10 log10(10 kHz x bit time), within
+        about 0.5 dB in simulation from 6 to 20 dB C/N. None while the deviation is unknown."""
+        dev = math.radians(self.dev_deg())
+        if dev < math.radians(0.5):
+            return None
+        return self.snr_db() - 20 * math.log10(dev) - 10 * math.log10(1e4 / self.bit_rate)
 
     # ---- signal ----
     def process(self, z):
@@ -158,11 +172,13 @@ class Demodulator:
             b = self._best
             if n0 + b - self._last >= half:           # never two bits closer than half a bit, so a
                 self._last = n0 + b                   # timing change across the wrap can't add one
+                self._t = (n0 + b) / self.fs
                 self._bit(row[b])
             E += self.E_ALPHA * (row * row - E)
             k = int(np.argmax(E))
             if E[k] > self.SWITCH * E[b]:
                 self._best = k
+        self._t = None
         self._n += nrows * spb
         self._rows = rows[nrows * spb:]
         return m

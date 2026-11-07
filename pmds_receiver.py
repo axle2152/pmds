@@ -269,6 +269,7 @@ class PMDSReceiver(gr.top_block):
         self.rds_af = []
         self.rds_rate, self.rds_bler = 0.0, 0.0
         self.pmds_bit_rate, self.pmds_dev_deg, self.pmds_snr_db, self.pmds_fixed = None, 0.0, 0.0, 0.0
+        self.pmds_cn_db = None                 # C/N as the data sees it (in-band), from the data SNR
         self.pmds_format = None
         self.pmds_alert, self.pmds_alert_t, self.pmds_facility_id, self.pmds_isrc = 0, None, None, None
         self.pmds_artist = self.pmds_title = None
@@ -499,7 +500,8 @@ class PMDSReceiver(gr.top_block):
         if self.pmds_bit_rate:
             pi = f"PI {self.rds_pi:04X} {self.rds_call or ''}" if self.rds_pi is not None else 'no PI yet'
             data = (f"PMDS     {'synced' if self.rds_synced else 'lost  '} {self.pmds_format} {self.pmds_bit_rate:g} bit/s  {pi}   "
-                    f"data {self.pmds_dev_deg:4.1f} deg  SNR {self.pmds_snr_db:4.1f} dB   "
+                    f"data {self.pmds_dev_deg:4.1f} deg  SNR {self.pmds_snr_db:4.1f} dB"
+                    f" (C/N {self._fmt_db(self.pmds_cn_db)} in-band)   "
                     f"{self.rds_bler:3.0f}% lost  {self.pmds_fixed:3.0f}% fixed"
                     + ('   ALERT: ' + ('EMERGENCY (PTY 31)' if self.pmds_alert == 2 else 'TEST (PTY 30)')
                        if self.pmds_alert else ''))
@@ -607,11 +609,16 @@ class PMDSReceiver(gr.top_block):
         self._pmds_publish()
 
     # ------------------------------------------------------------------- PMDS
+    @staticmethod
+    def _fmt_db(v):
+        return '  -- dB' if v is None else f"{v:4.1f} dB"
+
     def _pmds_clear(self):
         self.rds_ps, self.rds_rt, self.rds_pi, self.rds_call, self.rds_pty = '', '', None, None, None
         self.rds_synced, self.rds_tp, self.rds_ta = False, None, None
         self.rds_rate, self.rds_bler = 0.0, 0.0
         self.pmds_bit_rate, self.pmds_dev_deg, self.pmds_snr_db, self.pmds_fixed = None, 0.0, 0.0, 0.0
+        self.pmds_cn_db = None                 # C/N as the data sees it (in-band), from the data SNR
         self.pmds_format = None
         self.pmds_alert, self.pmds_alert_t, self.pmds_facility_id, self.pmds_isrc = 0, None, None, None
         self.pmds_artist = self.pmds_title = None
@@ -637,7 +644,7 @@ class PMDSReceiver(gr.top_block):
         self.pmds_bit_rate, self.pmds_format = best.bit_rate, best.fmt
         self.rds_synced = best.synced
         self.rds_rate, self.rds_bler, self.pmds_fixed = best.rate(), best.bler(), best.fixed()
-        self.pmds_dev_deg, self.pmds_snr_db = best.dev_deg(), best.snr_db()
+        self.pmds_dev_deg, self.pmds_snr_db, self.pmds_cn_db = best.dev_deg(), best.snr_db(), best.cn_db()
         if best.pi is not None:
             if best.pi != self.rds_pi:
                 self.rds_pi, self.rds_call = best.pi, pi_to_callsign(best.pi)

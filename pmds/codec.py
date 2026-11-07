@@ -25,7 +25,8 @@ Compact blocks and groups
   core   b1 [0x185]: PI 16 | PTY 5 | TP 1 | TA 1 | AF 1 | SEG 1 | ALERT 1 | spare 10
          b2 [0x3CB]: PS chars 4*SEG .. 4*SEG+3 (4 x 8 bits) | spare 4
   RT     b1 [0x066]: SEG 3 | A/B 1 | 4 chars
-         b2 [0x1BF]: 4 chars | spare 4        (8 chars per segment, 8 segments = 64 chars)
+         b2 [0x1BF]: 4 chars | spare 2 | ALERT 2   (8 chars per segment, 8 segments = 64 chars;
+                     ALERT 0 none, 1 test, 2 emergency, 3 reserved)
   ext    b1 [0x03D]: TYPE 4 | 32 payload bits
          b2 [0x007]: 36 payload bits          (68 payload bits per group)
            0 station ID  facility ID 24 | ECC 8 (0xA0 = USA)
@@ -37,7 +38,9 @@ Compact blocks and groups
            4 content ID  ISRC 52: country 2 x 5 | registrant 3 x 6 | year 7 | designation 17
            5-15 reserved
   Spare bits are sent as 0.
-  ALERT: 1 while an alert is on the air, with PTY 31 (RBDS Emergency) or 30 (Emergency Test).
+  ALERT: core groups carry a flag, 1 while an alert is on the air, with PTY 31 (RBDS Emergency)
+  or 30 (Emergency Test); RadioText groups carry the level itself. Extended groups pause during
+  an alert, so every group on the air then says so.
 
 RBDS-native framing (kept for bench comparison): real RBDS groups, bit for bit: 26-bit blocks
 (16 data + 10 check, the RDS code and offset words A, B, C, D), 104-bit groups. Group 0A (PI,
@@ -206,9 +209,11 @@ def rt_segments(rt_codes, max_len=RT_MAX):
     return [codes[i:i + 8] for i in range(0, len(codes), 8)]
 
 
-def rt_group(seg, ab, chars8):
+def rt_group(seg, ab, chars8, alert=0):
+    """One 8-character RadioText segment; alert = 0 none, 1 test, 2 emergency."""
     b1 = ((seg & 7) << 33) | ((ab & 1) << 32) | pack_bytes(chars8[:4])
-    return [make_block(b1, OFFSET['rt1']), make_block(pack_bytes(chars8[4:8]) << 4, OFFSET['rt2'])]
+    b2 = (pack_bytes(chars8[4:8]) << 4) | (max(0, min(2, int(alert))) & 3)
+    return [make_block(b1, OFFSET['rt1']), make_block(b2, OFFSET['rt2'])]
 
 
 # ---- extended groups -----------------------------------------------------------------------
