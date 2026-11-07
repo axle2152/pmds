@@ -406,15 +406,17 @@ _FONT_DIRS = [os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts'),
               '/Library/Fonts', '/System/Library/Fonts']
 _font_index = None
 
-FONT_ROLES = {
+FONT_ROLES = {                           # Windows first, then Linux (DejaVu, Liberation)
     'label':  [('bahnschrift.ttf', 'Regular'), ('segoeui.ttf', None), ('arial.ttf', None),
-               ('DejaVuSans.ttf', None)],
+               ('LiberationSans-Regular.ttf', None), ('DejaVuSans.ttf', None)],
     'badge':  [('bahnschrift.ttf', 'SemiBold'), ('segoeuib.ttf', None), ('arialbd.ttf', None),
-               ('DejaVuSans-Bold.ttf', None)],
+               ('LiberationSans-Bold.ttf', None), ('DejaVuSans-Bold.ttf', None)],
     'key':    [('bahnschrift.ttf', 'SemiBold'), ('segoeuisb.ttf', None), ('arialbd.ttf', None),
-               ('DejaVuSans-Bold.ttf', None)],
+               ('LiberationSans-Bold.ttf', None), ('DejaVuSans-Bold.ttf', None)],
     'vfd':    [('bahnschrift.ttf', 'SemiBold SemiCondensed'), ('ARIALNB.TTF', None),
-               ('arialbd.ttf', None), ('DejaVuSansCondensed-Bold.ttf', None)],
+               ('arialbd.ttf', None), ('LiberationSansNarrow-Bold.ttf', None),
+               ('DejaVuSansCondensed-Bold.ttf', None), ('LiberationSans-Bold.ttf', None),
+               ('DejaVuSans-Bold.ttf', None)],
 }
 _font_cache = {}
 
@@ -511,7 +513,17 @@ def font(role, px):
             break
         except OSError:
             f = None
-    if f is None:
+    if f is None:                        # none of the named fonts: any sans font installed
+        _find_font('-')
+        names = sorted(_font_index, key=lambda n: ('sans' not in n, 'bold' not in n, n))
+        for name in names:
+            if name.endswith(('.ttf', '.otf')) and 'mono' not in name:
+                try:
+                    f = ImageFont.truetype(_font_index[name], px)
+                    break
+                except OSError:
+                    f = None
+    if f is None:                        # last resort: Pillow's own font
         try:
             f = ImageFont.load_default(size=px)
         except TypeError:
@@ -520,8 +532,16 @@ def font(role, px):
     return f
 
 
+def _glyph_w(f, c):
+    """Advance width of one character. Pillow's built-in bitmap font has no getlength
+    before Pillow 9.2 (Ubuntu 22.04 ships 9.0)."""
+    if hasattr(f, 'getlength'):
+        return f.getlength(c)
+    return f.getsize(c)[0]
+
+
 def text_width(s, f, tracking=0.0):
-    return sum(f.getlength(c) for c in s) + tracking * max(0, len(s) - 1)
+    return sum(_glyph_w(f, c) for c in s) + tracking * max(0, len(s) - 1)
 
 
 def draw_text(d, x, y, s, f, fill, tracking=0.0, align='l', vanchor='s'):
@@ -531,12 +551,16 @@ def draw_text(d, x, y, s, f, fill, tracking=0.0, align='l', vanchor='s'):
         x -= w / 2
     elif align == 'r':
         x -= w
+    kw = {'anchor': 'l' + vanchor}
+    if not isinstance(f, ImageFont.FreeTypeFont):    # bitmap font: no anchors, top-left only
+        kw = {}
+        y -= {'s': f.getsize('A')[1], 'm': f.getsize('A')[1] / 2}.get(vanchor, 0)
     if tracking == 0.0:
-        d.text((x, y), s, font=f, fill=fill, anchor='l' + vanchor)
+        d.text((x, y), s, font=f, fill=fill, **kw)
         return
     for c in s:
-        d.text((x, y), c, font=f, fill=fill, anchor='l' + vanchor)
-        x += f.getlength(c) + tracking
+        d.text((x, y), c, font=f, fill=fill, **kw)
+        x += _glyph_w(f, c) + tracking
 
 
 # ---------------------------------------------------------------------------
