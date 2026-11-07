@@ -16,9 +16,18 @@ GNU Radio or copies from GPL code, and it should stay that way.
 
 ## Setup
 
-From the radioconda prompt, once:
+Install the `pmds` package once, pointing pip at the **top folder of this repository** (the one
+that holds `pyproject.toml`), not at the inner `pmds/` folder.
 
-    pip install -e <this folder>
+Windows (radioconda prompt or MSYS2):
+
+    pip install -e <path to this repository>
+
+Linux (no `sudo`):
+
+    git clone https://github.com/axle2152/pmds.git
+    cd pmds
+    pip install --user -e .
 
 That makes `pmds` importable everywhere, including inside GNU Radio Companion. Without it,
 keep the `pmds` folder beside the flowgraph and start GNU Radio Companion from this folder.
@@ -26,5 +35,5 @@ keep the `pmds` folder beside the flowgraph and start GNU Radio Companion from t
 ## Checks
 
     python tests/test_pmds.py               # check code, Appendix A test vectors, loopback (no GNU Radio)
-    python pmds_channel_test.py             # encoder -> skywave simulator -> decoder, every preset
-    python pmds_check.py pmds_tx.cfile      # decode a recording of the transmitter
+    python examples/pmds_channel_test.py    # encoder -> skywave simulator -> decoder, every preset
+    python examples/pmds_check.py pmds_tx.cfile  # decode a recording of the transmitter
