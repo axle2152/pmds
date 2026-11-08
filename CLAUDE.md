@@ -54,3 +54,36 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   zip arrives, merge it into this layout and keep the install fixes, `.gitignore` and README
   setup section rather than overwriting them.
 - README is written in plain language for a general reader; keep that tone.
+- Merges pull requests on GitHub. After each merge, give the update commands for both machines,
+  and the `pip install -e` again when `pyproject.toml` or the add-on changed.
+
+## The owner's aims for PMDS
+
+- Give it the best chance at a real life: free or very cheap for anyone to use. No patent or
+  licence fee is planned (it builds on prior art and existing standards, and a fee would be a
+  reason for stations and makers not to bother). Kept private until the owner has shown it to a
+  few people; an attorney friend (also a ham) is looking at it. Next steps the owner has in
+  mind: opinions from others, then perhaps an industry body (NRSC) and the FCC rules
+  (47 CFR 73.127).
+- 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
+  and data energy further from the carrier. 46.875 and 23.4375 bit/s are too slow; they stay
+  in the decoder for bench comparisons only, and 23.4375 passes for the C-QUAM pilot (spec
+  section 10).
+
+## Ideas for their own chats (not started)
+
+- C-QUAM stereo alongside PMDS: after demodulating the phase, split by frequency. L−R would
+  have to be cleared below about 250 Hz at the transmitter; in the receiver, phase content
+  above about 200 Hz is L−R and below goes to the PMDS decoder.
+- HD Radio (NRSC-5) hybrid on AM with PMDS (spec section 12: test it or keep it out of scope).
+  The owner has IP and licensing concerns about HD Radio itself.
+
+## Testing in a cloud session
+
+- GNU Radio: `apt-get install -y --no-install-recommends gnuradio gr-osmosdr` (Ubuntu 24.04,
+  GNU Radio 3.10.9, system Python 3.12). Python blocks inside a hier block must stay
+  referenced from Python, or the flowgraph segfaults on start.
+- `tests/test_addon.py` needs all-mode-receiver: clone axle2152/all-mode-receiver beside this
+  folder (it looks for `../all-mode-receiver`), or pass `--radio`.
+- To check the install route: `pip install -e .` in a venv, then all-mode-receiver's
+  `radio.addons.classes_for('AM')` should list PMDS.
