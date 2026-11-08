@@ -15,24 +15,21 @@ complex baseband (GRC File Sink, complex), with no radio in the loop.
 
     python pmds_check.py pmds_tx.cfile [--rate 192000]
 
-It runs the receiver's own data path (1 Hz carrier PLL, 6 kHz data channel, the PmdsDecoders
-from pmds_receiver.py at every rate, each trying both the compact and the RBDS framing),
+It runs the tuner's own data path (1 Hz carrier PLL, 6 kHz data channel, the PmdsDecoders
+from pmds_addon.py at every rate, each trying both the compact and the RBDS framing),
 prints every group as it decodes, then a summary with the block counts.
-Needs pmds_receiver.py and the pmds package beside it (or pmds installed).
+Needs pmds_addon.py and the pmds package beside it (or this folder installed).
 """
 import argparse
-import math
 import os
 import sys
-import types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.modules.setdefault('osmosdr', types.ModuleType('osmosdr'))   # not needed offline
-from gnuradio import gr, blocks, analog, filter
+from gnuradio import gr, blocks, filter
 from gnuradio.filter import firdes
 
 from pmds.codec import pi_to_callsign
-from pmds_receiver import PmdsDecoder, PMDSReceiver
+from pmds_addon import data_path
 
 
 def show(fr, kind, f):
@@ -62,14 +59,10 @@ def main():
     tb = gr.top_block()
     src = blocks.file_source(gr.sizeof_gr_complex, a.file, False)
     chan = filter.fir_filter_ccf(fs_in // ch, firdes.low_pass(1.0, fs_in, 10000, 4000))
-    pll = analog.pll_carriertracking_cc(2 * math.pi * PMDSReceiver.PLL_HZ / ch,
-                                        2 * math.pi * 60 / ch, -2 * math.pi * 60 / ch)
-    dlp = filter.fir_filter_ccf(ch // PMDSReceiver.PMDS_FS, firdes.low_pass(1.0, ch, 500.0, 300.0))
-    decs = [PmdsDecoder(PMDSReceiver.PMDS_FS, r) for r in PMDSReceiver.PMDS_RATES]
-    tb.connect(src, chan, pll, dlp)
+    tb.connect(src, chan)
+    pll, dlp, decs = data_path(tb, chan, ch)
     for d in decs:
         d.log = show
-        tb.connect(dlp, d)
     tb.run()
     print()
     for d in decs:

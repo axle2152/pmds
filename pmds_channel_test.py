@@ -12,7 +12,7 @@
 """
 Offline PMDS channel test: encoder -> skywave simulator -> the receiver's data path,
 no hardware, as fast as the PC runs. Same blocks as the real chain: pmds_encoder.blk,
-skywave_channel.blk, the 1 Hz carrier PLL and PmdsDecoder from pmds_receiver.
+skywave_channel.blk, the 1 Hz carrier PLL and PmdsDecoder from pmds_addon.
 
     python pmds_channel_test.py                       # every preset, compact 93.75 at 15 deg, 3 seeds
     python pmds_channel_test.py --alert               # how long an alert takes to show, per preset
@@ -35,19 +35,17 @@ import argparse
 import math
 import os
 import sys
-import types
 
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.modules.setdefault('osmosdr', types.ModuleType('osmosdr'))   # not needed offline
 from gnuradio import gr, blocks, analog, filter
 from gnuradio.filter import firdes
 
 import pmds_encoder as enc_gr
 from pmds import codec as enc
 import skywave_channel as sky
-from pmds_receiver import PmdsDecoder, PMDSReceiver
+from pmds_addon import PLL_HZ, PLL_PULL_HZ, PMDS_FS, PmdsDecoder
 
 FS = 48000                      # the receiver's channel rate
 PS = 'AM 1710'
@@ -88,11 +86,11 @@ def run(preset, rate, seed, secs, cn, data_on=True, keep_env=False, fmt='compact
     else:
         tb.connect(prog, lp, one, rail, f2c, head, e, ch)
     # the receiver's data path
-    pll = analog.pll_carriertracking_cc(2 * math.pi * PMDSReceiver.PLL_HZ / FS,
-                                        2 * math.pi * 60 / FS, -2 * math.pi * 60 / FS)
+    pll = analog.pll_carriertracking_cc(2 * math.pi * PLL_HZ / FS,
+                                        2 * math.pi * PLL_PULL_HZ / FS, -2 * math.pi * PLL_PULL_HZ / FS)
     ta = firdes.low_pass(1.0, FS, 500.0, 300.0, filter.window.WIN_HAMMING)
-    dlp = filter.fir_filter_ccf(FS // PMDSReceiver.PMDS_FS, ta)
-    d = PmdsDecoder(PMDSReceiver.PMDS_FS, rate)
+    dlp = filter.fir_filter_ccf(FS // PMDS_FS, ta)
+    d = PmdsDecoder(PMDS_FS, rate)
     d.LOCAL_BITS, d.ENV_FLOOR = {'local': (4, None), 'carrier': (0, None),
                                  'envelope': (0, FLOOR or 0.25)}[NORM]
     d._clear()

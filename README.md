@@ -90,15 +90,12 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 |---|---|
 | `pmds/` | The core: encoder, decoder, framing and character set, in plain Python and numpy |
 | `tests/test_pmds.py` | Self-test: check code, the specification's test vectors, encode-decode loopback |
+| `tests/test_addon.py` | End to end in GNU Radio: a simulated PMDS station through the all-mode-receiver tuner's AM receiver |
 | `pmds_encoder.py` | The encoder as a GNU Radio block |
-| `pmds_receiver.py` | A mono AM receiver with the PMDS decoder, for an RTL-SDR |
-| `pmds_monitor.py` | A window showing every block and group as it's decoded |
-| `pmds_tuner_ui.py` | A tuner window that shows PMDS data the way an RDS radio does |
-| `fm_stereo.py` | The FM stereo receiver the tuner uses on FM |
-| `rx_meters.py` | Audio and signal metering taps for the tuner's monitor |
+| `pmds_addon.py` | PMDS for the all-mode-receiver tuner: the decoder in GNU Radio, and what the tuner shows |
+| `pmds_monitor.py` | A window showing every block and group as it's decoded (key I in the tuner) |
 | `pmds_channel_test.py` | Offline test: encoder, simulated propagation and noise, decoder |
 | `pmds_check.py` | Decodes a recording of the transmitter |
-| `pmds_rx_check.py` | Checks the AM receiver's signal chain without the tuner window, and says in plain words which part stops |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
 | `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`), receiver design notes (`PMDS_Receiver_Design_Notes.md`) and logos |
@@ -108,7 +105,7 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 | Where | What | License |
 |---|---|---|
 | `pmds/` | The encoder, decoder, framing and character set. No GNU Radio needed. | Apache 2.0 (`pmds/LICENSE`, `pmds/NOTICE`) |
-| everything else | The GNU Radio blocks, receiver, bench tools and flowgraph | GPL 3.0 or later (`COPYING`) |
+| everything else | The GNU Radio blocks, the tuner add-on, bench tools and flowgraph | GPL 3.0 or later (`COPYING`) |
 
 Anyone building a radio or an exciter can take `pmds/` on its own and use it in a commercial
 product. Nothing in it imports GNU Radio or copies from GPL code, and it should stay that way.
@@ -137,9 +134,24 @@ time a program starts. Run it again only if you move the folder.
 Without installing, keep the `pmds` folder beside the flowgraph and start GNU Radio Companion
 from this folder.
 
+## Listening to PMDS
+
+PMDS shows up in the [all-mode-receiver](https://github.com/axle2152/all-mode-receiver)
+tuner. Installing this folder (above) also installs the PMDS add-on for it, and the tuner finds
+it by itself: on AM it shows the station's call letters, name, RadioText and program type the
+way it shows RDS on FM, blinks ALERT or TEST over the name during an alert, and has a PMDS
+lamp and meters in its Advanced window. Press I (or click the station detail line in the
+Advanced window) for the PMDS data monitor. Without this folder installed, the tuner is a
+plain AM radio.
+
+After a `git pull` that changes `pyproject.toml`, run the install command once more so the
+tuner keeps finding the add-on.
+
 ## Checks
 
     python tests/test_pmds.py                    # self-test, no GNU Radio needed
+    python tests/test_addon.py                   # PMDS through the tuner's AM receiver (needs
+                                                 # GNU Radio and all-mode-receiver beside this folder)
     python pmds_channel_test.py                  # every propagation preset, 8.6 degrees
     python pmds_channel_test.py --program bass   # the same with bass-heavy program
     python pmds_channel_test.py --alert          # how fast alerts show and clear

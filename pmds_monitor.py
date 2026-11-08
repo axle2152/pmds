@@ -11,7 +11,8 @@
 """
 PMDS data monitor: what the decoder really sees, block by block.
 
-Opened from the PMDS tuner (press I, or click the RDS detail line in the Advanced window).
+Opened from the all-mode-receiver tuner on AM, with the PMDS add-on installed (press I, or
+click the station detail line in the Advanced window).
   top line   station, format and bit rate of the framer the receiver is showing
   counts     blocks since tuning and over the last minute: clean / fixed (one bit repaired) / lost
   strip      the last 150 blocks, oldest left: green clean, amber fixed, red lost,

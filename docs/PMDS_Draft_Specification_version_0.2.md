@@ -177,7 +177,7 @@ The reference receiver's choices below were each settled by testing; a different
 9. **Display.** Show PS once both halves are in. Show RadioText progressively, in segment order up to the first gap or the end mark; clear it on an A/B change, and clear everything on a PI change. Call letters come from the PI by the RBDS method; the facility ID is for online lookups.
 10. **AF.** Handing off to the listed FM translator as the AM signal fades at night is the receiver's choice.
 
-This version defines one bit rate. The reference receiver also listens at 23.4375, 46.875 and 187.5 bit/s, for comparison on the bench.
+This version defines one bit rate. The reference receiver also listens at 23.4375, 46.875 and 187.5 bit/s, for comparison on the bench. 23.4375 bit/s is not a candidate for the air: one sine cycle per bit puts its energy at 23.4 Hz, beside the 25 Hz C-QUAM stereo pilot (section 10).
 
 ## 10. Compatibility and limits (informative)
 
@@ -189,6 +189,7 @@ Envelope-detector radios hear nothing on a clean signal by construction. Synchro
 | Envelope-detector radios, night multipath | Multipath turns some phase into AM: a low rumble, mostly masked by program. At 8.6 degrees, simulated two-path night with bass-heavy program: median −28 dB and worst second −18 dB relative to 100% modulation, 60 to 400 Hz (the program sits near −10 dB there), about 5 dB below the 15-degree figures. A C.Crane CC Pocket barely showed it up to 30 degrees | Simulation; listening |
 | Synchronous detectors, clean signal | Output follows envelope × cos(phase): a steady 187.5 Hz tone (twice the bit rate), the same for every bit, at −35 dB relative to 100% modulation at 15 degrees, −42 dB at 10, −45 dB at 8.6, −49 dB at 7 and −54 dB at 5. On a Sangean HDR-16 it was audible at 15 degrees, near the noise floor at 7, not heard at 8.6, and lost in the noise floor at 5 with no program | Calculated; listening on one radio |
 | C-QUAM stereo stations | Not possible: stereo uses the same phase | By design |
+| C-QUAM stereo radios | Their L−R path carries the data. They stay mono unless the data passes for the 25 Hz pilot. In the all-mode-receiver tuner's C-QUAM decoder, 23.4375 bit/s trips the pilot detector at once (a 15% reading, 59 dB over its neighbourhood, against 1.5% and 10 dB). At 93.75 bit/s the readings sit at the detector's 10 dB threshold: at 30 dB C/N it never latched in 60 s on the steady, mush, night1, night2 or flutter presets, and latched once on the disturbed preset. The tuner's PMDS decoder holds it in mono once PMDS decodes | Simulation; hardware C-QUAM radios untested |
 | HD Radio hybrid stations | Unknown | Untested |
 | Audio watermarks (Nielsen PPM) | None: the audio is not touched | By construction |
 | Transmitter IPM | Up to 6 degrees peak made no measurable difference at 8.6 degrees of data, by day or on two-path nights | Simulation |
@@ -251,6 +252,7 @@ These items stand between this draft and something a station could run.
 - [ ] Define how the encoder takes text and alerts from the connections stations already use for RDS encoders and EAS equipment
 - [ ] Confirm the two ambiguous G0 code points against IEC 62106. Also decide on alert spoofing: like PTY 31 on FM's RDS, the alert flag is unauthenticated, and a later version could sign alerts
 - [ ] Decide whether a later version adds 46.875 bit/s as a second profile (Appendix B)
+- [ ] Check a hardware C-QUAM radio's stereo pilot detector on a PMDS station at 93.75 bit/s, clean and through disturbed night conditions (section 10)
 - [ ] Settle the name
 - [ ] Decide on the two remaining proposals: a version field in the core group's reserved bits, and confirming an AF by a matching PI on the FM translator (the alert level now rides in every RadioText group)
 - [ ] Done: the reference decoder now times PS, RT and alerts per bit, not per processing block
@@ -304,4 +306,5 @@ The bit rate also sets where the synchronous-detector tone lands, at twice the r
 | Version | Date | Changes |
 | --- | --- | --- |
 | 0.2 | Nov 6, 2026 | Deviation 8.6 degrees nominal and maximum (was 15); synchronous-detector analysis and HDR-16 results (section 10); performance at 8.6 degrees, a deviation sweep and bench results (section 11); ITU-R BS.706 (AMDS), BBC LF radio-data and two expired US patents cited as prior art; reference code renamed PMDS, its core under Apache 2.0; the alert level in every RadioText group; medium-wave simulator presets |
+| 0.2 | Nov 8, 2026 | C-QUAM stereo radios (section 10): 23.4375 bit/s passes for the 25 Hz pilot and is not a candidate for the air; 93.75 bit/s is close to the pilot detector's threshold on disturbed nights |
 | 0.1 | Nov 5, 2026 | First draft |

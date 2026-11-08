@@ -12,6 +12,7 @@ if int(setuptools.__version__.split('.')[0]) < 61:
     with open(os.path.join(here, 'pyproject.toml')) as f:
         version = re.search(r'^version\s*=\s*"([^"]+)"', f.read(), re.M).group(1)
     setup(name='pmds', version=version, packages=['pmds'], install_requires=['numpy'],
-          python_requires='>=3.8')
+          python_requires='>=3.8', py_modules=['pmds_addon', 'pmds_monitor'],
+          entry_points={'all_mode_receiver.addons': ['pmds = pmds_addon:Addon']})
 else:
     setup()
