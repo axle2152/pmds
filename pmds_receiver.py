@@ -79,7 +79,9 @@ class PMDSReceiver(gr.top_block):
     AM_XWIDE_HZ      = 10200.0      # set_wide(True): everything an NRSC-1 station sends
     AM_MIN_HZ        = 2500.0
     # carrier-to-noise (dB in 10 kHz) -> bandwidth, interpolated
-    BW_TABLE         = [(15, 2500), (22, 3500), (28, 4500), (34, 6000), (40, 8000), (46, 10000)]
+    # the same table as all-mode-receiver's am_receiver.py (the owner's choice: it opens up
+    # sooner); AM_WIDE_HZ caps the top step at 10 kHz here
+    BW_TABLE         = [(15, 2500), (18, 3500), (21, 4500), (24, 6000), (27, 8000), (30, 10200)]
     # a carrier 10 kHz away this strong (dB re ours) limits the bandwidth to...
     ADJ_TABLE        = [(-35, 7000), (-25, 5000), (-15, 4000), (-8, 3000)]
     BW_SLEW_IN       = 2000.0       # Hz per second, narrowing
