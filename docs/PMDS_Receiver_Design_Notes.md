@@ -69,8 +69,14 @@ themselves remain out of scope (spec section 1) until tested.
 **C-QUAM radios.** A C-QUAM decoder (for example Motorola's MC13028A
 ([datasheet](https://www.amstzone.org/MC13028.pdf))) recovers L−R from the carrier's phase, so
 on a PMDS station its L−R path carries the data. A C-QUAM radio switches to stereo only when it
-detects the 25 Hz pilot, which PMDS doesn't send, so it stays in mono and the listener hears
-nothing of it. Not yet tried on the bench.
+detects the 25 Hz pilot. PMDS sends none, but at 23.4375 bit/s, one sine cycle per bit puts the
+data's energy at 23.4 Hz, right beside it. In the all-mode-receiver tuner's software C-QUAM
+decoder, that rate trips the pilot detector (a 15% reading, 59 dB above its neighbourhood,
+against thresholds of 1.5% and 10 dB), and the tuner switches to stereo and plays the data as
+L−R until its PMDS add-on syncs and holds it in mono. At 46.875, 93.75 and 187.5 bit/s the same
+detector stays in mono, though single readings come within a few dB of its thresholds
+(simulated station at 40 dB C/N; `tests/test_addon.py`). A hardware decoder such as the
+MC13028A may react differently: not yet tried on the bench.
 
 ## 3. What the decoder needs
 
@@ -137,3 +143,4 @@ follows spec section 8.
 - How much phase does program audio leak into the data through typical analog IF filters, and
   through a typical car radio's narrowing AM filter?
 - Can the L−R output of a C-QUAM radio decode PMDS on the bench?
+- Does PMDS at 23.4375 bit/s switch a hardware C-QUAM radio into stereo?

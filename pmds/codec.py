@@ -96,7 +96,8 @@ _ENC.update({'\u03b2': 0x8D, '`': 0x27})          # look-alikes people type
 _TYPO = {'\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"', '\u2013': '-', '\u2014': '-',
          '\u2026': '...', '\u00d7': 'x', '\t': ' ', '\r': ' ', '\n': ' '}
 
-# RBDS PI code <-> US call letters (NRSC-4 Annex D), the same table as fm_stereo.py
+# RBDS PI code <-> US call letters (NRSC-4 Annex D), the same table as the all-mode-receiver
+# tuner's RDS decoder
 _RBDS_3LETTER = {
     0x99A5: 'KBW', 0x99A6: 'KCY', 0x9990: 'KDB', 0x99A7: 'KDF', 0x9950: 'KEX', 0x9951: 'KFH',
     0x9952: 'KFI', 0x9953: 'KGA', 0x9991: 'KGB', 0x9954: 'KGO', 0x9955: 'KGU', 0x9956: 'KGW',
