@@ -29,7 +29,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SECS = 10
 STAGES = ('from dongle', 'carrier PLL', 'into PMDS', 'to sound')
-RATES = (2_400_000, 48_000, 6_000, 48_000)          # samples per second when all is well
+RATES = (960_000, 48_000, 6_000, 48_000)            # samples per second when all is well
 
 
 # ---------------------------------------------------------------------------- child

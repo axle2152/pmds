@@ -10,6 +10,8 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - `docs/PMDS_Draft_Specification_version_0.2.md`: the spec. Where spec and code disagree, the
   spec is the intent and the code is the bug. Keep its Appendix A test vectors, section 11
   numbers and revision history in step with code changes. Equations use ```math blocks.
+- `docs/PMDS_Receiver_Design_Notes.md`: informative notes on building a PMDS-capable AM radio
+  (radio types, decoder needs, what spoils the phase). Keep claims sourced or marked untested.
 - `pmds/`: the core package (encoder, demod, framer, codec, sources). Plain Python + numpy,
   **Apache 2.0**. It must never import GNU Radio or copy from the GPL files.
 - Top-level `pmds_*.py`, `skywave_channel.py`, `am_data_tx.grc`: GNU Radio blocks, receiver,

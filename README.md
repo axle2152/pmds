@@ -55,8 +55,27 @@ anywhere people are still listening, the data gets through.
 exciter box for an older transmitter, the way AM stereo (C-QUAM) exciters worked, or a feature
 in a modern digital exciter. No change to the audio chain.
 
-**What a radio would need.** Decoding software in the tuner, a lighter job than the FM RDS
-decoding those tuners already do.
+**What a radio would need.** First, a way to see the carrier's phase. An ordinary AM radio's
+detector looks only at strength, so it throws away exactly what PMDS changes, and no software
+update can bring that back. But many newer radios work differently inside. DSP radio chips, car
+tuners, HD Radio receivers and SDRs turn the signal into numbers that keep the phase, and older
+radios with a synchronous detector or C-QUAM stereo already measured phase in hardware. In those,
+PMDS is a software job, and a light one: the decoder handles 94 bits a second, where an FM RDS
+decoder handles about 1,200.
+
+Whether a given radio could get PMDS through a firmware update depends on where that phase
+information is:
+
+- **Car radios with a separate HD Radio or DAB chip** look like the easiest case. The tuner
+  already sends the signal, phase included, to a processor that runs updatable software.
+- **Single-chip radios** have the phase inside the chip, where only the chip's maker can add a
+  new mode. There is a precedent: a patch that adds single-sideband reception to a popular radio
+  chip is loaded into it at start-up.
+- **Radios with a synchronous detector or C-QUAM stereo** have the phase on a circuit board
+  trace, so a small add-on chip could decode it.
+
+[Receiver design notes](docs/PMDS_Receiver_Design_Notes.md) has the details: which radio types
+can do it, what the decoder needs, and what in a radio can spoil the phase.
 
 ## Status
 
@@ -82,7 +101,7 @@ decoding those tuners already do.
 | `pmds_rx_check.py` | Checks the AM receiver's signal chain without the tuner window, and says in plain words which part stops |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
-| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`) and logos |
+| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`), receiver design notes (`PMDS_Receiver_Design_Notes.md`) and logos |
 
 ## Two licenses
 
