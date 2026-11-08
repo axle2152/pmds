@@ -74,9 +74,12 @@ data's energy at 23.4 Hz, right beside it. In the all-mode-receiver tuner's soft
 decoder, that rate trips the pilot detector (a 15% reading, 59 dB above its neighbourhood,
 against thresholds of 1.5% and 10 dB), and the tuner switches to stereo and plays the data as
 L−R until its PMDS add-on syncs and holds it in mono. At 46.875, 93.75 and 187.5 bit/s the same
-detector stays in mono, though single readings come within a few dB of its thresholds
-(simulated station at 40 dB C/N; `tests/test_addon.py`). A hardware decoder such as the
-MC13028A may react differently: not yet tried on the bench.
+detector stays in mono on a steady signal, though single readings come within a few dB of its
+thresholds (simulated station at 40 dB C/N; `tests/test_addon.py`). Band conditions matter: at
+93.75 bit/s and 30 dB C/N through the skywave simulator, the readings sit right at the
+detector's 10 dB threshold, and in 60 s it latched once on the disturbed preset (never on
+steady, mush, night1, night2 or flutter). A hardware decoder such as the MC13028A may react
+differently: not yet tried on the bench.
 
 ## 3. What the decoder needs
 
