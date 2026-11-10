@@ -69,7 +69,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   reason for stations and makers not to bother). Kept private until the owner has shown it to a
   few people; an attorney friend (also a ham) may review it, but no review has happened yet. A
   patent and prior-art search in November 2026 found no live US patent claiming the physical
-  layer or framing; the prior art is in spec section 2. Next steps the owner has in mind:
+  layer or framing; the prior art is in spec section 2. A US wordmark search found the name
+  free (one dead PMDS registration); a trademark, and the licences for the spec and the logos
+  (AI-generated, so the owner may redraw them), are on the attorney's list (spec section 12).
+  Next steps the owner has in mind:
   opinions from others (SBE Chapter 5), then perhaps an industry body (NRSC) and the FCC rules
   (47 CFR 73.127).
 - 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
