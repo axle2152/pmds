@@ -44,9 +44,12 @@ about 5 seconds, a full 64-character text in about 18, and an alert in about 1.
 it throws away anything that doesn't check out, so text arrives whole or not at all instead of
 showing garbage.
 
-**Effect on the audio.** Ordinary radios hear nothing, by design. Radios with a synchronous
-detector (some HD Radio sets and DSP car radios) can hear a faint, steady low tone at 187.5 Hz.
-The draft keeps the nudges small enough that the tone stays 45 dB below full modulation.
+**Effect on the audio.** Ordinary radios hear nothing on a clean signal, by design. Radios with a
+synchronous detector (some HD Radio sets and DSP car radios) can hear a faint, steady low tone at
+187.5 Hz. The draft keeps the nudges small enough that the tone stays 45 dB below full
+modulation. On the bench, on a strong signal, it could just be heard under the hiss with no
+program playing, and not at all under music. At night, sky-wave echoes turn a little of the data
+into a faint low rumble that any radio can pick up, more the worse the conditions.
 
 **Range.** In tests the data keeps decoding until the station's audio is mostly static, so
 anywhere people are still listening, the data gets through.
