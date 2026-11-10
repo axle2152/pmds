@@ -51,7 +51,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   `pip install --user -e .`, no sudo). Both update with `git pull`.
 - Hardware is on the owner's bench, not in the cloud session: HackRF transmitter, RTL-SDR
   receivers, Sangean HDR-16 (synchronous detector), C.Crane CC Pocket. Bench and listening
-  results come from them.
+  results come from them. The Soapy HackRF sink runs only whole-MHz rates (2 to 20 Msps), and
+  a flowgraph's rate variables must match it (`am_data_tx.grc` sends at exactly 2 Msps). Its
+  carrier sits on the HackRF's own centre frequency; offset tuning is still to be tried (spec
+  section 10). The RTL-SDR clips often on medium wave.
 - Work used to happen in a separate chat and get copied in as zips with a flat layout. If a
   zip arrives, merge it into this layout and keep the install fixes, `.gitignore` and README
   setup section rather than overwriting them.
