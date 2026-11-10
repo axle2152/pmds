@@ -130,6 +130,14 @@ Plain synchronous detectors hear a faint steady tone at twice the bit rate (spec
 PMDS radio has no reason to: it knows the phase modulation it has just decoded, so it can remove
 it before synchronous detection, or use envelope detection for audio on strong signals.
 
+Some DSP AM tuners reduce noise by treating the quadrature channel as pure noise and subtracting
+its spectrum from the audio
+([US 11,277,287](https://patents.google.com/patent/US11277287B2/en),
+[US 2026/0039323](https://patents.google.com/patent/US20260039323A1/en)). On a PMDS station the
+quadrature channel carries the data, so such a radio may take the data for noise and remove a
+little low-frequency program with it. C-QUAM stations, with L−R in the quadrature channel, raise
+the same issue. Untested.
+
 ## 6. Display and alerts
 
 PMDS fields keep their RBDS meanings: PI (with the same call-letter derivation), PS, RadioText,
@@ -147,3 +155,5 @@ follows spec section 8.
   through a typical car radio's narrowing AM filter?
 - Can the L−R output of a C-QUAM radio decode PMDS on the bench?
 - Does PMDS at 23.4375 bit/s switch a hardware C-QUAM radio into stereo?
+- On a PMDS station, does AM noise reduction that uses the quadrature channel as its noise
+  reference remove audible program?

@@ -44,9 +44,12 @@ about 5 seconds, a full 64-character text in about 18, and an alert in about 1.
 it throws away anything that doesn't check out, so text arrives whole or not at all instead of
 showing garbage.
 
-**Effect on the audio.** Ordinary radios hear nothing, by design. Radios with a synchronous
-detector (some HD Radio sets and DSP car radios) can hear a faint, steady low tone at 187.5 Hz.
-The draft keeps the nudges small enough that the tone stays 45 dB below full modulation.
+**Effect on the audio.** Ordinary radios hear nothing on a clean signal, by design. Radios with a
+synchronous detector (some HD Radio sets and DSP car radios) can hear a faint, steady low tone at
+187.5 Hz. The draft keeps the nudges small enough that the tone stays 45 dB below full
+modulation. On the bench, on a strong signal, it could just be heard under the hiss with no
+program playing, and not at all under music. At night, sky-wave echoes turn a little of the data
+into a faint low rumble that any radio can pick up, more the worse the conditions.
 
 **Range.** In tests the data keeps decoding until the station's audio is mostly static, so
 anywhere people are still listening, the data gets through.
@@ -82,7 +85,10 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 - Draft specification, version 0.2 (November 2026)
 - Tested on the bench: a HackRF transmitter, RTL-SDR receivers, an AM radio with a synchronous
   detector, and a medium-wave propagation simulator
+- A longer bench run decoded about 20,000 blocks with under 0.1% lost, with program processed
+  to −95% and +125% peaks
 - Not yet tested on a licensed AM station, in a car, or against real night-time recordings
+- Prior-art and patent search done in November 2026; attorney review still to come
 
 ## What's in this folder
 
@@ -165,11 +171,23 @@ sunrise or sunset flutter. The older shortwave-style presets are still there as 
 ## Prior art and related systems
 
 PMDS is a new format, but the idea of carrying data on an AM carrier's phase is old and
-public: Collins Radio filed for a patent on a phase-modulated secondary service on AM stations in 1970
-(US 3,714,375, long expired), Leonard Kahn on a compatible AM data system in 1984 (US 4,688,255),
-the BBC ran phase-modulated data on its 198 kHz long-wave carrier from 1985 until June 2026,
-the ITU described AM data systems (AMDS) in Recommendation BS.706, and the DRM consortium
-defined AMSS. PMDS borrows its fields and its call-letter method from RDS and RBDS.
+public, which is part of why PMDS can be free for anyone to use.
+
+- **1970s:** Collins Radio filed for a patent on a phase-modulated secondary service on AM
+  stations in 1970 (US 3,714,375), and from 1976 Martinez patented paging, utility control and
+  public alerts on an AM station's carrier phase.
+- **1980s:** the BBC put phase-modulated data on its 198 kHz long-wave carrier from 1981, in full
+  service from 1985 until June 2026. East Germany ran a similar system on a high-power
+  broadcaster, and the ITU's CCIR described both in 1986 (Report 1061). Leonard Kahn patented a
+  compatible AM data system in 1984 (US 4,688,255). In 1988 Licentia (Telefunken) described
+  "AM-RDS": RDS-style station data on the carrier phase of long-, medium- and shortwave
+  broadcasters, at about 100 to 195 bits per second, the closest precedent to PMDS.
+- **Later:** the ITU's Recommendation BS.706 described AM data systems (AMDS), and the DRM
+  consortium defined AMSS.
+
+Those patents have long expired, and the Licentia applications were never granted. The draft
+specification lists the prior art in section 2. PMDS borrows its fields and its call-letter
+method from RDS and RBDS.
 
 ## Credits
 

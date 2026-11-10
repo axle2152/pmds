@@ -10,6 +10,8 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - `docs/PMDS_Draft_Specification_version_0.2.md`: the spec. Where spec and code disagree, the
   spec is the intent and the code is the bug. Keep its Appendix A test vectors, section 11
   numbers and revision history in step with code changes. Equations use ```math blocks.
+  It is the only copy: no Word or PDF versions in the repository. A PDF, when one is
+  needed, is made from this file (GitHub's page printed to PDF does it).
 - `docs/PMDS_Receiver_Design_Notes.md`: informative notes on building a PMDS-capable AM radio
   (radio types, decoder needs, what spoils the phase). Keep claims sourced or marked untested.
 - `pmds/`: the core package (encoder, demod, framer, codec, sources). Plain Python + numpy,
@@ -49,7 +51,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   `pip install --user -e .`, no sudo). Both update with `git pull`.
 - Hardware is on the owner's bench, not in the cloud session: HackRF transmitter, RTL-SDR
   receivers, Sangean HDR-16 (synchronous detector), C.Crane CC Pocket. Bench and listening
-  results come from them.
+  results come from them. The Soapy HackRF sink runs only whole-MHz rates (2 to 20 Msps), and
+  a flowgraph's rate variables must match it (`am_data_tx.grc` sends at exactly 2 Msps). Its
+  carrier sits on the HackRF's own centre frequency; offset tuning is still to be tried (spec
+  section 10). The RTL-SDR clips often on medium wave.
 - Work used to happen in a separate chat and get copied in as zips with a flat layout. If a
   zip arrives, merge it into this layout and keep the install fixes, `.gitignore` and README
   setup section rather than overwriting them.
@@ -62,8 +67,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - Give it the best chance at a real life: free or very cheap for anyone to use. No patent or
   licence fee is planned (it builds on prior art and existing standards, and a fee would be a
   reason for stations and makers not to bother). Kept private until the owner has shown it to a
-  few people; an attorney friend (also a ham) is looking at it. Next steps the owner has in
-  mind: opinions from others, then perhaps an industry body (NRSC) and the FCC rules
+  few people; an attorney friend (also a ham) may review it, but no review has happened yet. A
+  patent and prior-art search in November 2026 found no live US patent claiming the physical
+  layer or framing; the prior art is in spec section 2. Next steps the owner has in mind:
+  opinions from others (SBE Chapter 5), then perhaps an industry body (NRSC) and the FCC rules
   (47 CFR 73.127).
 - 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
   and data energy further from the carrier. 46.875 and 23.4375 bit/s are too slow; they stay
