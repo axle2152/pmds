@@ -72,9 +72,8 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   layer or framing; the prior art is in spec section 2. A US wordmark search found the name
   free (one dead PMDS registration); a trademark, and the licences for the spec and the logos
   (AI-generated, so the owner may redraw them), are on the attorney's list (spec section 12).
-  Next steps the owner has in mind:
-  opinions from others (SBE Chapter 5), then perhaps an industry body (NRSC) and the FCC rules
-  (47 CFR 73.127).
+  Next steps the owner has in mind: opinions from others (SBE Chapter 5), then perhaps an
+  industry body (NRSC) and the FCC rules (47 CFR 73.127).
 - 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
   and data energy further from the carrier. 46.875 and 23.4375 bit/s are too slow; they stay
   in the decoder for bench comparisons only, and 23.4375 passes for the C-QUAM pilot (spec
