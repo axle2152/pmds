@@ -1,6 +1,6 @@
 # PMDS Draft Specification, version 0.2
 
-Nov 6, 2026 · @Mike
+Michael Foley, KK4EKN · last revised Nov 10, 2026
 
 ## 1. Scope and status
 
@@ -8,7 +8,7 @@ This draft defines PMDS (Phase Modulation Data Service, working name): station i
 
 - **Stations:** mono AM (amplitude modulation, A3E) stations in the US AM band. Stations broadcasting C-QUAM AM stereo are excluded, since stereo uses the same carrier phase. HD Radio hybrid stations are out of scope until tested.
 - **Normative and informative:** sections 2 to 8 are normative; SHALL and SHOULD carry their usual meaning there. Sections 9 onward and the appendices are informative.
-- **Reference implementation:** the `pmds` package (encoder, decoder and framing in Python and numpy, no GNU Radio needed) under the Apache License 2.0, with GNU Radio blocks and bench tools around it (`pmds_encoder.py`, `pmds_receiver.py`, `pmds_channel_test.py`, `pmds_check.py`) under GPL 3.0 or later. Where this text and the code disagree, this text is the intent and the code is a bug.
+- **Reference implementation:** the `pmds` package (encoder, decoder and framing in Python and numpy, no GNU Radio needed) under the Apache License 2.0, with GNU Radio blocks and bench tools around it (`pmds_encoder.py`, `pmds_addon.py`, `pmds_channel_test.py`, `pmds_check.py`) under GPL 3.0 or later. Where this text and the code disagree, this text is the intent and the code is a bug.
 
 ## 2. References
 
@@ -22,12 +22,17 @@ PMDS takes its field meanings from RBDS and defines only how they are carried; t
 | [47 CFR 73.127](https://www.law.cornell.edu/cfr/text/47/73.127) | AM multiplex transmissions; the audibility and no-degradation conditions |
 | [47 CFR 11.45](https://www.law.cornell.edu/cfr/text/47/11.45) | No EAS codes or attention signal outside real alerts and tests |
 | [ETSI TS 102 386](https://www.etsi.org/deliver/etsi_ts/102300_102399/102386/01.01.01_60/ts_102386v010101p.pdf) (AMSS) | Prior art for the physical layer and block size; not a dependency |
-| [ITU-R BS.706-1](https://itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.706-1-199203-S!!MSW-E.doc) (AMDS, 1992) | Prior art: data by phase modulation of the main carrier on LF and MF, up to 200 bit/s, with example systems at 25 bit/s biphase ±22.5°, 40 bit/s ±28.5° and 200 bit/s ±15°; not a dependency |
+| [ITU-R BS.706-1](https://itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.706-1-199203-S!!MSW-E.doc) (AMDS, 1992) | Prior art: data by phase modulation of the main carrier on LF and MF, up to 200 bit/s, with example systems at 25 bit/s biphase ±22.5°, 40 bit/s ±28.5° and 200 bit/s ±15°; revised as BS.706-2 in 1998; not a dependency |
 | [BBC RD 1984/19](https://downloads.bbc.co.uk/rd/pubs/reports/1984-19.pdf), L.F. radio-data | Prior art in long service: biphase phase modulation of BBC Radio 4's 198 kHz carrier at 25 bit/s, ±22.5°, from 1985 until the 198 kHz transmitters closed on 30 June 2026 ([history](https://en.wikipedia.org/wiki/Radio_teleswitch)) |
 | [US 3,714,375](https://patents.google.com/patent/US3714375A/en) (Collins Radio, 1970) | Prior art for the core principle: a secondary phase-modulated communications service carried by AM broadcast stations; expired |
 | [US 4,688,255](https://patents.google.com/patent/US4688255A/en) (L. R. Kahn, 1984) | Prior art for the core principle: a compatible AM broadcast and data transmission system; expired |
+| [US 4,117,405](https://patents.google.com/patent/US4117405A/en) and related patents (Martinez, 1976 to 1982) | Prior art: narrow-band phase modulation of an AM broadcast carrier for data, paging, utility load control and public alerts, with the bit clock divided down from the carrier; expired |
+| [EP 0347541](https://patents.google.com/patent/EP0347541A1/en) and [EP 0367897](https://patents.google.com/patent/EP0367897A2/en) (Licentia, 1988) | Prior art, the closest single precedent: "AM-RDS", biphase-coded, digitally shaped data phase-modulated onto long-, medium- and shortwave broadcast carriers within ±30°, at about 97.6 to 195 bit/s, carrying programme identity and name, programme type, AF lists, traffic, alarms and time. The second application traces audibility to PM-to-AM conversion on receiver IF filter skirts. Never granted |
+| [US 5,444,720](https://patents.google.com/patent/US5444720A/en) (Telefunken, 1990) | Prior art: RDS-style fields (PI, PS, AF, TP, TA, RadioText) in repeating groups on an AM carrier's phase; expired |
+| CCIR Report 1061, *Recommendations and Reports of the CCIR*, Dubrovnik 1986, Vol. X Part 1 | Prior art in an ITU publication: the BBC system (25 bit/s biphase, ±22.5°, 50-bit blocks with a 13-bit CRC, on air from October 1981 with no listener complaints) and an East German system at up to 100 bit/s on a high-power broadcast transmitter |
+| [EP 1079557](https://patents.google.com/patent/EP1079557A2/en) (Deutsche Telekom, 1999) | States as known art that the RDS protocol was carried on long wave as phase modulation of a carrier; never granted |
 
-PMDS is a new format, not a profile of AMDS or AMSS; those systems are cited only for comparison. The BBC service is the strongest precedent: a phase-modulated data signal on a national broadcast carrier for four decades, with its parameters [chosen](https://www.sigidwiki.com/images/2/29/1984-19.pdf) so that domestic receivers were not disturbed.
+PMDS is a new format, not a profile of AMDS or AMSS; those systems are cited only for comparison. The BBC service is the strongest precedent: a phase-modulated data signal on a national broadcast carrier for four decades, with its parameters [chosen](https://www.sigidwiki.com/images/2/29/1984-19.pdf) so that domestic receivers were not disturbed. The closest design precedent is Licentia's 1988 AM-RDS: the same kinds of fields, biphase data and a bit rate near PMDS's, on the carrier phase of AM broadcast transmitters. What PMDS adds is a complete, open specification for US medium-wave stations, with RBDS field meanings, a measured deviation limit and a tested reference receiver.
 
 ## 3. Physical layer
 
@@ -186,11 +191,12 @@ Envelope-detector radios hear nothing on a clean signal by construction. Synchro
 | Case | Effect | Basis |
 | --- | --- | --- |
 | Envelope-detector radios, clean signal | None: the envelope is unchanged | By construction; bench |
-| Envelope-detector radios, night multipath | Multipath turns some phase into AM: a low rumble, mostly masked by program. At 8.6 degrees, simulated two-path night with bass-heavy program: median −28 dB and worst second −18 dB relative to 100% modulation, 60 to 400 Hz (the program sits near −10 dB there), about 5 dB below the 15-degree figures. A C.Crane CC Pocket barely showed it up to 30 degrees | Simulation; listening |
-| Synchronous detectors, clean signal | Output follows envelope × cos(phase): a steady 187.5 Hz tone (twice the bit rate), the same for every bit, at −35 dB relative to 100% modulation at 15 degrees, −42 dB at 10, −45 dB at 8.6, −49 dB at 7 and −54 dB at 5. On a Sangean HDR-16 it was audible at 15 degrees, near the noise floor at 7, not heard at 8.6, and lost in the noise floor at 5 with no program | Calculated; listening on one radio |
+| Envelope-detector radios, night multipath | Multipath turns some phase into AM: a low rumble, mostly masked by program. At 8.6 degrees, simulated two-path night with bass-heavy program: median −28 dB and worst second −18 dB relative to 100% modulation, 60 to 400 Hz (the program sits near −10 dB there), about 5 dB below the 15-degree figures. A C.Crane CC Pocket barely showed it up to 30 degrees. On the bench, the bleed-through was heard only while the signal moved between groundwave and sky wave | Simulation; listening |
+| Synchronous detectors, clean signal | Output follows envelope × cos(phase): a steady 187.5 Hz tone (twice the bit rate), the same for every bit, at −35 dB relative to 100% modulation at 15 degrees, −42 dB at 10, −45 dB at 8.6, −49 dB at 7 and −54 dB at 5. On a Sangean HDR-16 it was audible at 15 degrees, near the noise floor at 7, not heard at 8.6, and lost in the noise floor at 5 with no program. In later bench listening at 8.6 degrees a faint hum was audible on the HDR-16, masked by the background hiss | Calculated; listening on one radio |
 | C-QUAM stereo stations | Not possible: stereo uses the same phase | By design |
 | C-QUAM stereo radios | Their L−R path carries the data. They stay mono unless the data passes for the 25 Hz pilot. In the all-mode-receiver tuner's C-QUAM decoder, 23.4375 bit/s trips the pilot detector at once (a 15% reading, 59 dB over its neighbourhood, against 1.5% and 10 dB). At 93.75 bit/s the readings sit at the detector's 10 dB threshold: at 30 dB C/N it never latched in 60 s on the steady, mush, night1, night2 or flutter presets, and latched once on the disturbed preset. The tuner's PMDS decoder holds it in mono once PMDS decodes | Simulation; hardware C-QUAM radios untested |
 | HD Radio hybrid stations | Unknown | Untested |
+| DSP tuners whose AM noise reduction uses the quadrature channel as its noise reference | Unknown. Such noise reduction assumes the quadrature channel holds only noise; on a PMDS station it holds the data, so the radio may take the data for noise and remove a little low-frequency program with it. C-QUAM stations raise the same issue | Published receiver designs (receiver design notes, section 5); untested |
 | Audio watermarks (Nielsen PPM) | None: the audio is not touched | By construction |
 | Transmitter IPM | Up to 6 degrees peak made no measurable difference at 8.6 degrees of data, by day or on two-path nights | Simulation |
 | Adjacent channels ±10 kHz | No overlap: the data stays within about ±200 Hz of its own carrier | Simulation, earlier format |
@@ -237,6 +243,7 @@ Compact framing, 93.75 bit/s, 8.6 degrees, mean C/N 30 dB in 10 kHz, the referen
 
 - **Noise, steady signal:** at 8.6 degrees, 98% of groups at 6 dB C/N and 64% at 3 dB (blocks 48% clean, 33% repaired, 19% lost; decoder SNR readout 7.4 dB); none at 0 dB. At 15 degrees, 94% at 0 dB.
 - **Bench, 8.6 degrees:** decoding held down to about 12 dB C/N, with the decoder's SNR readout near 10 dB and about half the blocks clean, 30% repaired and 20% lost. PI and PS were always right and RadioText usually completed. Compact framing showed far fewer wrong characters than RBDS framing: text arrives whole or not at all. The simulator shows that block mix at 3 dB C/N, so the bench is about 9 dB short of it (section 12).
+- **Bench, longer run, 8.6 degrees:** HackRF transmitter to the all-mode-receiver tuner, program processed to −95% negative and +125% positive peaks: about 20,000 blocks with under 0.1% lost. C/N and path (wired or off air) still to be recorded.
 - **Alerts, 8.6 degrees, medium-wave presets:** with the alert level in every group, all 72 test alerts showed (flat and bass-heavy program, groundwave to disturbed night), median 1 s from the start of the alert and worst 4 s, and each cleared 2 s after it ended. No wrong station identity was displayed in any run.
 
 ## 12. Open issues
@@ -245,9 +252,10 @@ These items stand between this draft and something a station could run.
 
 - [ ] Measure the synchronous-detector tone by FFT (the 187.5 Hz line) on the HDR-16, an SDR's synchronous AM mode and car radios, to confirm the square law and the provisional −45 dB limit (section 10)
 - [ ] Repeat the 8.6-degree bench test wired (HackRF to RTL-SDR through 40 to 60 dB of attenuation, C/N set by the simulator). Off air the bench needed about 9 dB more C/N than the simulator for the same block mix (section 11). Likely causes: the receiver's C/N display takes its noise floor from the whole 2.4 MHz capture rather than near the carrier, so it reads high; common-mode noise clipping the RTL-SDR; and dropped samples, which cost about 3.5 s of blocks each before slip recovery and about 1.2 s with it
-- [ ] Calibrate the simulator against real night medium-wave recordings
-- [ ] Listening tests on a range of consumer radios, car radios above all
+- [ ] Calibrate the simulator against real night medium-wave recordings, and find where decoding stops at the fringe: PMDS puts about 14 dB less energy into each bit than the BBC's 25 bit/s at ±22.5°
+- [ ] Listening tests on a range of consumer radios, car radios above all, written up the way the BBC reported its own (BBC RD 1982/15, LF/MF radio data: compatibility tests), since 47 CFR 73.127 asks for signals not audible on ordinary consumer receivers
 - [ ] Test HD Radio hybrid compatibility, or keep it out of scope
+- [ ] Check DSP car tuners whose AM noise reduction treats the quadrature channel as noise (section 10)
 - [ ] A supervised trial on a licensed AM station under 47 CFR 73.127
 - [ ] Define how the encoder takes text and alerts from the connections stations already use for RDS encoders and EAS equipment
 - [ ] Confirm the two ambiguous G0 code points against IEC 62106. Also decide on alert spoofing: like PTY 31 on FM's RDS, the alert flag is unauthenticated, and a later version could sign alerts
@@ -256,7 +264,8 @@ These items stand between this draft and something a station could run.
 - [ ] Settle the name
 - [ ] Decide on the two remaining proposals: a version field in the core group's reserved bits, and confirming an AF by a matching PI on the FM translator (the alert level now rides in every RadioText group)
 - [ ] Done: the reference decoder now times PS, RT and alerts per bit, not per processing block
-- [ ] Attorney review of prior art and licensing before the repository goes public. Patent searches so far found only expired patents close to the core idea (section 2) and no close active US patents
+- [ ] Attorney review of prior art and licensing before the repository goes public. A patent search in November 2026 (18 queries, forward citations of the key patents, and the claims of the closest live US families read) found no live US patent claiming the physical layer or the framing; the prior art it found is in section 2
+- [ ] When the repository goes public, tag a dated release and deposit it with a public archive (Software Heritage or Zenodo, for example), so its publication date is fixed as prior art
 
 ## Appendix A. Test vectors
 
@@ -307,4 +316,6 @@ The bit rate also sets where the synchronous-detector tone lands, at twice the r
 | --- | --- | --- |
 | 0.2 | Nov 6, 2026 | Deviation 8.6 degrees nominal and maximum (was 15); synchronous-detector analysis and HDR-16 results (section 10); performance at 8.6 degrees, a deviation sweep and bench results (section 11); ITU-R BS.706 (AMDS), BBC LF radio-data and two expired US patents cited as prior art; reference code renamed PMDS, its core under Apache 2.0; the alert level in every RadioText group; medium-wave simulator presets |
 | 0.2 | Nov 8, 2026 | C-QUAM stereo radios (section 10): 23.4375 bit/s passes for the 25 Hz pilot and is not a candidate for the air; 93.75 bit/s is close to the pilot detector's threshold on disturbed nights |
+| 0.2 | Nov 9, 2026 | Prior art from the patent search (section 2): Martinez, Licentia AM-RDS, Telefunken, CCIR Report 1061 and Deutsche Telekom; BS.706-2 noted. Noise-reducing DSP tuners and later listening (section 10); a longer bench run (section 11); open issues updated, including an archived public release |
+| 0.2 | Nov 10, 2026 | Section 1 names the decoder's current home, `pmds_addon.py`; this Markdown file is now the only copy of the specification |
 | 0.1 | Nov 5, 2026 | First draft |

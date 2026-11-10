@@ -82,7 +82,10 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 - Draft specification, version 0.2 (November 2026)
 - Tested on the bench: a HackRF transmitter, RTL-SDR receivers, an AM radio with a synchronous
   detector, and a medium-wave propagation simulator
+- A longer bench run decoded about 20,000 blocks with under 0.1% lost, with program processed
+  to −95% and +125% peaks
 - Not yet tested on a licensed AM station, in a car, or against real night-time recordings
+- Prior-art and patent search done in November 2026; attorney review still to come
 
 ## What's in this folder
 
@@ -165,11 +168,23 @@ sunrise or sunset flutter. The older shortwave-style presets are still there as 
 ## Prior art and related systems
 
 PMDS is a new format, but the idea of carrying data on an AM carrier's phase is old and
-public: Collins Radio filed for a patent on a phase-modulated secondary service on AM stations in 1970
-(US 3,714,375, long expired), Leonard Kahn on a compatible AM data system in 1984 (US 4,688,255),
-the BBC ran phase-modulated data on its 198 kHz long-wave carrier from 1985 until June 2026,
-the ITU described AM data systems (AMDS) in Recommendation BS.706, and the DRM consortium
-defined AMSS. PMDS borrows its fields and its call-letter method from RDS and RBDS.
+public, which is part of why PMDS can be free for anyone to use.
+
+- **1970s:** Collins Radio filed for a patent on a phase-modulated secondary service on AM
+  stations in 1970 (US 3,714,375), and from 1976 Martinez patented paging, utility control and
+  public alerts on an AM station's carrier phase.
+- **1980s:** the BBC put phase-modulated data on its 198 kHz long-wave carrier from 1981, in full
+  service from 1985 until June 2026. East Germany ran a similar system on a high-power
+  broadcaster, and the ITU's CCIR described both in 1986 (Report 1061). Leonard Kahn patented a
+  compatible AM data system in 1984 (US 4,688,255). In 1988 Licentia (Telefunken) described
+  "AM-RDS": RDS-style station data on the carrier phase of long-, medium- and shortwave
+  broadcasters, at about 100 to 195 bits per second, the closest precedent to PMDS.
+- **Later:** the ITU's Recommendation BS.706 described AM data systems (AMDS), and the DRM
+  consortium defined AMSS.
+
+Those patents have long expired, and the Licentia applications were never granted. The draft
+specification lists the prior art in section 2. PMDS borrows its fields and its call-letter
+method from RDS and RBDS.
 
 ## Credits
 
