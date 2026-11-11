@@ -113,11 +113,12 @@ class Addon:
         best = self.pmds_best()
         if best.last_group_t < 0 and not best.synced:
             return None                                  # nothing heard yet
-        # Decoding PMDS means the station is mono (C-QUAM stations can't carry it), and its data
-        # can look like the 25 Hz C-QUAM pilot to the AM receiver (it does at 23.4375 bit/s):
-        # 'mono' tells the receiver to ignore that. Only from decoded groups, never from data
-        # energy alone, which a real C-QUAM station's stereo would also show.
-        out = dict(mono=True, synced=best.synced, rate=best.rate(), bler=best.bler(),
+        # No 'mono' report: the tuner decides stereo by its own pilot test (a steady tone at
+        # exactly 25 Hz, standing well clear of its surroundings), which PMDS data doesn't pass,
+        # and a pilot it hears always wins. That way a false PMDS sync on a real C-QUAM station,
+        # whose L-R sits on the same phase (bass panned to one side puts plenty in PMDS's band),
+        # can't cost the station its stereo.
+        out = dict(synced=best.synced, rate=best.rate(), bler=best.bler(),
                    bit_rate=best.bit_rate, format=best.fmt, fixed=best.fixed(),
                    dev_deg=best.dev_deg(), snr_db=best.snr_db(), cn_db=best.cn_db())
         if best.pi is not None:

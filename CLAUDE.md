@@ -76,8 +76,11 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   industry body (NRSC) and the FCC rules (47 CFR 73.127).
 - 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
   and data energy further from the carrier. 46.875 and 23.4375 bit/s are too slow; they stay
-  in the decoder for bench comparisons only, and 23.4375 passes for the C-QUAM pilot (spec
-  section 10).
+  in the decoder for bench comparisons only, and 23.4375 can pass for the C-QUAM pilot in a
+  simple pilot detector (spec section 10).
+- PMDS doesn't hold the tuner in mono: the tuner's own pilot test decides stereo, and a pilot it
+  hears always wins, because PMDS falsely syncs now and then on real C-QUAM stations (their L−R
+  is on the same phase; bass panned to one side fills PMDS's band).
 
 ## Ideas for their own chats (not started)
 

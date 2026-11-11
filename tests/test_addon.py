@@ -11,8 +11,8 @@ End to end, in GNU Radio: a simulated AM station (a carrier with a 1 kHz tone at
 from pmds.Encoder at 8.6 degrees, noise for 40 dB C/N) goes in where the dongle would, at the
 receiver's 960 ksps, into all-mode-receiver's own AMReceiver with the PMDS add-on attached the
 way the tuner attaches it. Then the station data the tuner shows must be right: call letters,
-name, RadioText, the alert, and the receiver must not mistake the data for a C-QUAM stereo
-pilot. Runs 93.75 bit/s (with and without an alert) and the slow 23.4375 bit/s, where the
+name, RadioText, the alert, and the receiver must never mistake the data for a C-QUAM stereo
+pilot, before or after PMDS syncs. Runs 93.75 bit/s (with and without an alert) and the slow 23.4375 bit/s, where the
 add-on's own 1 Hz carrier lock matters. Runs faster than real time.
 
 Needs GNU Radio and a copy of all-mode-receiver: --radio, or the ALL_MODE_RECEIVER
@@ -142,12 +142,11 @@ def run(bit_rate, secs, alert=0):
     check('RadioText (the alert text, during an alert)', rx.rds_rt == want_rt, repr(rx.rds_rt))
     check('the alert', rx.station.get('alert', 0) == alert, f"alert {rx.station.get('alert')}")
     check('blocks lost', rx.rds_bler < 5, f"{rx.rds_bler:.0f}%")
-    # the data can pass for a C-QUAM pilot (at 23.4375 bit/s it does) until PMDS syncs and the
-    # add-on tells the receiver the station is mono; then the stereo blend fades out (0.5 s)
-    late = stereo_last is not None and (synced_at is None or stereo_last > synced_at + 1.0)
-    check('mono once PMDS is decoding (no stereo from the data)', not late,
+    # the tuner's pilot test (a steady tone at exactly 25 Hz, well clear of its surroundings)
+    # must not take the data for a C-QUAM pilot at any rate, 23.4375 bit/s included
+    check('no stereo from the data, ever', stereo_last is None,
           'never stereo' if stereo_last is None else
-          f"stereo ended {stereo_last - synced_at:+.2f} s after PMDS synced" if synced_at else 'never synced')
+          f"stereo at {stereo_last - t0:.1f} s" + (f" (PMDS synced at {synced_at - t0:.1f} s)" if synced_at else ''))
     check("the add-on's line and meter for the window",
           f"{bit_rate:g} bit/s" in a.readout() and a.meter()[0] == 'PMDS data', a.readout()[:60])
 

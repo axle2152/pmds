@@ -70,16 +70,22 @@ themselves remain out of scope (spec section 1) until tested.
 ([datasheet](https://www.amstzone.org/MC13028.pdf))) recovers L−R from the carrier's phase, so
 on a PMDS station its L−R path carries the data. A C-QUAM radio switches to stereo only when it
 detects the 25 Hz pilot. PMDS sends none, but at 23.4375 bit/s, one sine cycle per bit puts the
-data's energy at 23.4 Hz, right beside it. In the all-mode-receiver tuner's software C-QUAM
-decoder, that rate trips the pilot detector (a 15% reading, 59 dB above its neighbourhood,
-against thresholds of 1.5% and 10 dB), and the tuner switches to stereo and plays the data as
-L−R until its PMDS add-on syncs and holds it in mono. At 46.875, 93.75 and 187.5 bit/s the same
-detector stays in mono on a steady signal, though single readings come within a few dB of its
-thresholds (simulated station at 40 dB C/N; `tests/test_addon.py`). Band conditions matter: at
-93.75 bit/s and 30 dB C/N through the skywave simulator, the readings sit right at the
-detector's 10 dB threshold, and in 60 s it latched once on the disturbed preset (never on
-steady, mush, night1, night2 or flutter). A hardware decoder such as the MC13028A may react
-differently: not yet tried on the bench.
+data's energy at 23.4 Hz, right beside it. How a radio tells a pilot from the data decides
+whether it's fooled. The all-mode-receiver tuner's first software detector took the strongest
+energy between 23 and 27.5 Hz: 23.4375 bit/s tripped it at once (a 15% reading, 59 dB above its
+neighbourhood, against thresholds of 1.5% and 10 dB), and at 93.75 bit/s and 30 dB C/N through
+the skywave simulator it latched once in 60 s on the disturbed preset. Its present detector
+takes as a pilot only a steady tone within 0.5 Hz of 25 Hz that stands 10 dB over the spectrum
+3 to 4.5 Hz either side. PMDS data, a broad hump of energy around the bit rate, doesn't pass:
+run in real time, it never went stereo at 93.75 bit/s on any medium-wave preset, nor at
+23.4375 bit/s, and a real pilot is still found down to 12 dB C/N. A hardware decoder such as the
+MC13028A may react differently: not yet tried on the bench.
+
+The reverse happens too. A C-QUAM station's L−R rides on the same phase that PMDS reads, so a
+PMDS decoder on a C-QUAM station sees program as data; with bass panned to one side there is a
+lot of it in PMDS's band, and now and then random bits pass the check word and the decoder
+syncs falsely (seen on the bench). A radio that decodes both should let a pilot it hears decide
+stereo, never a PMDS decode; the tuner does.
 
 ## 3. What the decoder needs
 
