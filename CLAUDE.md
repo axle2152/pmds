@@ -81,14 +81,17 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - PMDS doesn't hold the tuner in mono: the tuner's own pilot test decides stereo, and a pilot it
   hears always wins, because PMDS falsely syncs now and then on real C-QUAM stations (their L−R
   is on the same phase; bass panned to one side fills PMDS's band).
+- HD Radio hybrid stations are ruled out (tested November 2026, spec section 10 and its
+  figure `docs/pmds_hd_hybrid_spectrum.png`): PMDS's energy falls in the receiver slot of the
+  HD reference carriers at ±182 Hz, no bit rate gets out of the way, and fewer than 100 AM
+  stations still run hybrid HD. The owner has IP and licensing concerns about HD Radio itself:
+  keep NRSC-5 flowgraphs, gr-nrsc5 code and HD signal simulators out of this repository.
 
 ## Ideas for their own chats (not started)
 
 - C-QUAM stereo alongside PMDS: after demodulating the phase, split by frequency. L−R would
   have to be cleared below about 250 Hz at the transmitter; in the receiver, phase content
   above about 200 Hz is L−R and below goes to the PMDS decoder.
-- HD Radio (NRSC-5) hybrid on AM with PMDS (spec section 12: test it or keep it out of scope).
-  The owner has IP and licensing concerns about HD Radio itself.
 
 ## Testing in a cloud session
 

@@ -3,6 +3,7 @@
 PMDS (Phase Modulation Data Service, a working name) lets an AM station send the kind of
 information FM stations already send with RDS: the station's name, what's playing, and
 emergency alerts. It works on ordinary mono AM stations, and ordinary AM radios don't hear it.
+It can't share a station with AM stereo or HD Radio, which use the same part of the signal.
 
 This is an experimental project and a draft specification, not an adopted standard.
 

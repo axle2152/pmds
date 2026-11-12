@@ -63,8 +63,10 @@ HD Radio signal.
 component in phase with the analog carrier
 ([US 6,292,511](https://patents.google.com/patent/US6292511),
 [US 5,859,876](https://patents.google.com/patent/US5859876)), so an HD Radio receiver has to
-demodulate relative to the carrier's phase. That is the reference PMDS needs. Hybrid stations
-themselves remain out of scope (spec section 1) until tested.
+demodulate relative to the carrier's phase. That is the reference PMDS needs, on the mono AM
+stations PMDS is for. Hybrid stations themselves are excluded: PMDS's energy falls in the
+receiver slot of their reference carriers, and an HDR-16 lost HD reception on the bench (spec
+section 10).
 
 **C-QUAM radios.** A C-QUAM decoder (for example Motorola's MC13028A
 ([datasheet](https://www.amstzone.org/MC13028.pdf))) recovers L−R from the carrier's phase, so
