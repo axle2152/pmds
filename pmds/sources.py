@@ -69,15 +69,15 @@ def parse_rt_program(line):
 
 
 def now_playing_json(raw):
-    """powerfm_metadata.py's nowplaying.json: artist, title and (if present) isrc."""
+    """powerfm_metadata.py's nowplaying.json: the text 'artist - title', and (artist, title)."""
     import json
     try:
         d = json.loads(raw)
     except ValueError:
-        return raw, (None, None, None)
+        return raw, (None, None)
     artist, title = str(d.get('artist') or '').strip(), str(d.get('title') or '').strip()
     text = '%s - %s' % (artist, title) if artist and title else (title or artist)
-    return text, (artist or None, title or None, str(d.get('isrc') or '').strip() or None)
+    return text, (artist or None, title or None)
 
 
 def read_text(path):

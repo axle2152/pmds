@@ -104,14 +104,23 @@ These follow spec section 9 and the reference receiver.
    a loop well below 47 Hz would deliver the data at its phase detector output.
 2. **The right measurement.** The quadrature component divided by the local carrier's power,
    not the raw phase angle and not the quadrature divided by the instantaneous envelope
-   (spec section 9, item 2).
+   (spec section 9, item 2). Then take out the program's leak: multipath, or another station's
+   carrier on the channel, turns some of the program's bass into phase, in the data's band.
+   The radio already has the program, as the envelope, so it can fit the phase to the envelope
+   and the envelope's slope over about 8 bits and subtract the fit (spec section 9, item 3).
+   A few sums per sample.
 3. **A modest sample rate.** The data stays within about ±200 Hz of the carrier, so complex
    samples at about 1.5 kHz (16 per bit) after a ±500 Hz low-pass are enough. The reference
    uses 6 kHz.
 4. **The same kind of framing as RDS.** Syndrome check, block sync, slip recovery, at most one
    corrected bit per block (spec sections 4 and 9). A tuner with an RDS decoder already has
    this logic, with a different polynomial, offsets and block length.
-5. **Little computing power.** One bit rate at the reference's 6 kHz takes roughly a million
+5. **One station at a time.** Several PMDS stations can share a channel at night. Core and
+   extended groups carry the PI; RadioText groups don't, so they count only next to a core
+   group of the station on show. A station shows after two core groups in a row with its PI,
+   and an alert after two groups in a row that signal it, one of them a core group (spec
+   sections 8 and 9).
+6. **Little computing power.** One bit rate at the reference's 6 kHz takes roughly a million
    simple operations a second, and a few kilobytes of memory. That fits a small microcontroller
    or a corner of a tuner DSP. RDS, by comparison, demodulates a 57 kHz subcarrier at
    1187.5 bit/s, more than twelve times PMDS's 93.75 bit/s.

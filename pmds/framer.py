@@ -16,10 +16,21 @@ PMDS framers: block sync, single-bit correction and group parsing, for one frami
 A demodulator (pmds.demod) recovers bits and feeds each one to two framers at once: the compact
 PMDS format and RBDS-native groups. Whichever framer holds block sync is the one a receiver
 shows; the other one just never finds sync.
+
+One station at a time. With several PMDS stations on one channel at night, the decoder hears
+each in turn as they fade, so everything shown is tied to one PI:
+  PI        taken once two core groups in a row carry it; everything shown for the previous
+            station goes then
+  RadioText a RadioText group carries no PI, so it counts only next to a core group that
+            carries the PI on show: the one before it, or else the one after it (it waits),
+            with no slip or loss of sync in between. Two stations' blocks don't fall in
+            step, so a change of station shows as a slip.
+  extended  every extended group carries the PI; another station's is ignored
+  alert     shown after two groups in a row signal it, at least one of them a core group
 """
 from collections import deque
 
-from .codec import G0, END, OFFSET, syndrome, RDS_OFFSET, rds_syndrome, af_freq, isrc_unpack
+from .codec import G0, END, OFFSET, syndrome, RDS_OFFSET, rds_syndrome, af_freq, AF_MAX
 
 
 def _bytes(v, n):
@@ -37,7 +48,9 @@ class Framer:
     SLIP_SEARCH = True        # while in sync, watch for blocks that have slipped off the boundaries
     SLIP_AFTER = 2            # lost blocks in a row before a slipped position may take over
     ALERT_HOLD = 20.0         # an alert nobody has confirmed for this long times out (seconds)
-    fmt, N = '', 0
+    ALERT_WINDOW = 5          # the two groups that start an alert: at most this many group times apart
+    RT_WAIT = 8               # RadioText groups kept waiting for a core group, at most
+    fmt, N, GROUP_BITS = '', 0, 0
 
     def __init__(self, dec):
         self.dec = dec
@@ -55,19 +68,24 @@ class Framer:
         self.counts = {'clean': 0, 'fixed': 0, 'lost': 0}
         self.group_t = deque(maxlen=64)
         self.groups, self.last_group_t = 0, -1.0
-        self.pi = self.ps = self.pty = self.tp = self.ta = self.af = None
-        self.alert, self.alert_t = 0, None        # 0 none, 1 test (PTY 30), 2 emergency (PTY 31)
-        self.alert_tier = None
-        self._alert_cand, self._alert_off, self._alert_last = False, 0, -1e9
-        self.facility_id, self.af_list, self.clock, self.isrc = None, [], None, None
-        self.rtplus, self.artist, self.title = None, None, None
-        self._ext_cand = {}
-        self.rt = ''
-        self._pi_cand = None
-        self._ps_part, self._ps_cand = {}, {}
-        self._rt_segs, self._ab = {}, None
+        self.pi, self._pi_cand, self._pi_held = None, None, None
+        self._ours = False                        # the blocks coming in are the station's on show:
+        self._clear_station()                     # true from a core group with its PI until a slip
         self._expect = None
         self._group = {}
+
+    def _clear_station(self):
+        """Everything shown for a station. It all goes when the PI changes."""
+        self.ps = self.pty = self.tp = self.ta = self.af = None
+        self.rt = ''
+        self._ps_part, self._ps_cand = {}, {}
+        self._rt_segs, self._ab, self._rt_wait = {}, None, []
+        self.facility_id, self.af_list, self.clock = None, [], None
+        self.rtplus, self.artist, self.title = None, None, None
+        self._ext_cand = {}
+        self.alert, self.alert_t = 0, None        # 0 none, 1 test (PTY 30), 2 emergency (PTY 31)
+        self.alert_tier = None
+        self._alert_cand, self._alert_cand_t, self._alert_off, self._alert_last = (0, False), -1e9, 0, -1e9
 
     # ---- shared with the decoder ----
     @property
@@ -115,6 +133,7 @@ class Framer:
     def _sync(self, on):
         if on != self.synced:
             self.block_log.append((self.now(), 'sync' if on else 'nosync'))
+            self._rt_wait, self._ours = [], False  # what comes next may be another station
         self.synced = on
 
     def _log(self, kind, fields):
@@ -201,6 +220,7 @@ class Framer:
                 self.held = [prev, (kind, reg >> self.K)]
                 self._expect = self.after(kind)
                 self._group = {}
+                self._rt_wait, self._ours = [], False  # the new position may be another station's
                 self.slips.clear()
                 self.slips_found += 1
                 self.block_log.append((self.now(), 'slip'))
@@ -210,15 +230,25 @@ class Framer:
             del self.slips[k]
 
     # ---- groups: the parts both framings share ----
-    def _station(self, pi, fixed):
-        """PI handling: a corrected group has to agree with the previous one."""
-        if not fixed or pi == self._pi_cand:
-            if self.pi is not None and pi != self.pi:       # another station: drop what we had
-                self.ps, self.rt, self._rt_segs, self._ab = None, '', {}, None
-                self._ps_part, self._ps_cand = {}, {}
-            self.pi = pi
-        self._pi_cand = pi
-        return pi == self.pi
+    def _station(self, pi, later=None):
+        """Is this group from the station on show? A PI is taken once two groups in a row
+        carry it, and everything shown for the previous station goes then. later: what the
+        first of the two has to show, done once the second confirms it."""
+        if pi == self.pi:
+            self._pi_cand, self._pi_held, self._ours = pi, None, True
+            return True
+        if pi == self._pi_cand:
+            wait = self._rt_wait                  # heard since the first of the two: this station's
+            self._clear_station()
+            self.pi, self._rt_wait, self._ours = pi, wait, True
+            held, self._pi_held = self._pi_held, None
+            if held:
+                held()
+            return True
+        self._pi_cand, self._pi_held = pi, later
+        if self.pi is not None:
+            self._rt_wait, self._ours = [], False  # heard before it: maybe this other station's
+        return False
 
     def _ps(self, seg, text, nparts, fixed):
         if fixed and text != self._ps_cand.get(seg):
@@ -247,18 +277,23 @@ class Framer:
             text += c
         self.rt = _text(text).rstrip()
 
-    def _alert_seen(self, on, level, fixed):
-        """Alert on: one clean group (or two repaired ones) with the flag and PTY 30/31.
+    def _alert_seen(self, on, level, core=True):
+        """Alert on: two groups in a row that signal it, at the same level and no more than
+        ALERT_WINDOW group times apart, at least one of them a core group. One false group
+        can't raise it, and a core group brings the PI, the flag and the PTY together.
         Off: two groups in a row without it, so one bad block can't end an alert."""
+        now = self.now()
         if on:
-            if not fixed or self._alert_cand:
+            cand, cand_core = self._alert_cand
+            if cand == level and (core or cand_core) and \
+                    now - self._alert_cand_t <= self.ALERT_WINDOW * self.GROUP_BITS / self.bit_rate:
                 if not self.alert:
-                    self.alert_t = self.now()
+                    self.alert_t = now
                 self.alert = level
-                self._alert_last = self.now()
-            self._alert_cand, self._alert_off = True, 0
+                self._alert_last = now
+            self._alert_cand, self._alert_cand_t, self._alert_off = (level, core), now, 0
         else:
-            self._alert_cand = False
+            self._alert_cand = (0, False)
             if self.alert:
                 self._alert_off += 1
                 if self._alert_off >= 2:
@@ -277,7 +312,7 @@ class Framer:
 
 class CompactFramer(Framer):
     """Our compact format: 36 + 11 bit blocks, two blocks to a group."""
-    fmt, N, K = 'compact', 47, 11
+    fmt, N, K, GROUP_BITS = 'compact', 47, 11, 94
     OFFSET = OFFSET
     KIND = {v: k for k, v in OFFSET.items()}
     SINGLE = {syndrome(1 << j): j for j in range(47)}
@@ -312,40 +347,59 @@ class CompactFramer(Framer):
             pi, seg = d1 >> 20, (d1 >> 11) & 1
             half = _text(_bytes(d2 >> 4, 4))
             pty, flag = (d1 >> 15) & 31, (d1 >> 10) & 1
-            if self._station(pi, fixed):
+
+            def show():
                 if self._ps(seg, half, 2, fixed):
                     self.pty, self.tp, self.ta, self.af = pty, (d1 >> 14) & 1, (d1 >> 13) & 1, (d1 >> 12) & 1
-                self._alert_seen(flag and pty in (30, 31), 2 if pty == 31 else 1, fixed)
+                self._alert_seen(flag and pty in (30, 31), 2 if pty == 31 else 1)
+            if self._station(pi, show):
+                self._release()                       # the text heard since the last core group
+                show()
             self._log('core', dict(pi=pi, seg=seg, half=half, fixed=fixed, ps=self.ps, pty=pty,
                                    tp=(d1 >> 14) & 1, ta=(d1 >> 13) & 1, alert=flag, tier=0))
         elif kind == 'rt':
             seg, ab, level = (d1 >> 33) & 7, (d1 >> 32) & 1, d2 & 3
             codes = _bytes(d1, 4) + _bytes(d2 >> 4, 4)
-            self._rt(seg, ab, codes, 8)
-            self._tags()
-            self._alert_seen(level in (1, 2), level, fixed)
+            self._rt_wait.append((seg, ab, codes, level))   # no PI in it: a core group vouches for it,
+            del self._rt_wait[:-self.RT_WAIT]               # the last one if nothing has slipped since,
+            if self._ours:                                  # or else the next one
+                self._release()
             self._log('rt', dict(seg=seg, ab=ab, fixed=fixed, text=_text(codes), rt=self.rt, alert=level))
         elif kind == 'ext':
-            self._ext((d1 >> 32) & 15, ((d1 & 0xFFFFFFFF) << 36) | d2, fixed)
+            self._ext(d1 >> 20, (d1 >> 16) & 15, ((d1 & 0xFFFF) << 36) | d2, fixed)
         else:
             self._log(kind, dict(d1=d1, d2=d2, fixed=fixed))
 
-    def _ext(self, typ, v, fixed):
+    def _release(self):
+        """The RadioText groups waiting belong to the station on show: a core group with its PI
+        came just before or just after them (a slip or a loss of sync would have dropped them)."""
+        wait, self._rt_wait = self._rt_wait, []
+        for seg, ab, codes, level in wait:
+            self._rt(seg, ab, codes, 8)
+            self._alert_seen(level in (1, 2), level, core=False)
+        if wait:
+            self._tags()
+
+    def _ext(self, pi, typ, v, fixed):
+        if pi != self.pi:                                   # another station's, or none on show yet
+            self._log('ext', dict(type=typ, pi=pi, fixed=fixed,
+                                  info='type %d for PI %04X, not the station on show' % (typ, pi)))
+            return
         if fixed and self._ext_cand.get(typ) != v:          # a repaired group has to repeat first
             self._ext_cand[typ] = v
             return
         self._ext_cand[typ] = v
         if typ == 0:
-            self.facility_id = (v >> 44) & 0xFFFFFF
+            self.facility_id = (v >> 28) & 0xFFFFFF
             info = 'facility ID %d' % self.facility_id
         elif typ == 1:
-            cnt = min(6, (v >> 65) & 7)
-            self.af_list = [af_freq((v >> (56 - 9 * i)) & 0x1FF) for i in range(cnt)]
+            cnt = min(AF_MAX, (v >> 49) & 7)
+            self.af_list = [af_freq((v >> (40 - 9 * i)) & 0x1FF) for i in range(cnt)]
             info = 'AF ' + ', '.join(self.af_list)
         elif typ == 2:
             import datetime as _dt
-            mjd, hh, mm = (v >> 51) & 0x1FFFF, (v >> 46) & 31, (v >> 40) & 63
-            off = ((v >> 34) & 31) * (-1 if (v >> 39) & 1 else 1)
+            mjd, hh, mm = (v >> 35) & 0x1FFFF, (v >> 30) & 31, (v >> 24) & 63
+            off = ((v >> 18) & 31) * (-1 if (v >> 23) & 1 else 1)
             try:
                 day = _dt.date(1858, 11, 17) + _dt.timedelta(days=mjd)
                 self.clock = '%s %02d:%02d UTC (local %+g h)' % (day.isoformat(), hh, mm, off / 2.0)
@@ -353,17 +407,13 @@ class CompactFramer(Framer):
                 self.clock = None
             info = 'clock %s' % self.clock
         elif typ == 3:
-            l2 = (v >> 31) & 31
-            self.rtplus = [((v >> 60) & 63, (v >> 54) & 63, ((v >> 48) & 63) + 1),
-                           ((v >> 42) & 63, (v >> 36) & 63, l2 + 1)]
+            self.rtplus = [((v >> 44) & 63, (v >> 38) & 63, ((v >> 32) & 63) + 1),
+                           ((v >> 26) & 63, (v >> 20) & 63, ((v >> 15) & 31) + 1)]
             self._tags()
             info = 'RT+ artist "%s" title "%s"' % (self.artist or '', self.title or '')
-        elif typ == 4:
-            self.isrc = isrc_unpack(v >> 16)
-            info = 'ISRC %s' % self.isrc
         else:
             info = 'type %d' % typ
-        self._log('ext', dict(type=typ, info=info, fixed=fixed))
+        self._log('ext', dict(type=typ, pi=pi, info=info, fixed=fixed))
 
     def _tags(self):
         """Artist and title from the RT+ tags into the current RadioText."""
@@ -379,7 +429,7 @@ class CompactFramer(Framer):
 
 class RbdsFramer(Framer):
     """Real RBDS: 16 + 10 bit blocks A, B, C (or C'), D; groups 0A/0B and 2A parsed."""
-    fmt, N, K = 'rbds', 26, 10
+    fmt, N, K, GROUP_BITS = 'rbds', 26, 10, 104
     OFFSET = RDS_OFFSET
     KIND = {v: k for k, v in RDS_OFFSET.items()}
     SINGLE = {rds_syndrome(1 << j): j for j in range(26)}
@@ -428,18 +478,21 @@ class RbdsFramer(Framer):
                 return
             self._counted()
             part = _text(_bytes(d, 2))
-            if self._station(pi, fixed):
+
+            def show():
                 if self._ps(seg, part, 4, fixed):
                     self.pty, self.tp, self.ta = pty, tp, (low >> 4) & 1
-                self._alert_seen(pty in (30, 31), 2 if pty == 31 else 1, fixed)
+                self._alert_seen(pty in (30, 31), 2 if pty == 31 else 1)
+            if self._station(pi, show):
+                show()
             self._log('core', dict(pi=pi, seg=seg, half=part, fixed=fixed, ps=self.ps, pty=pty, tp=tp,
                                    ta=(low >> 4) & 1, alert=1 if pty in (30, 31) else 0, tier=0, group=name))
         elif gt == 2 and ver == 0 and 'C' in g and 'D' in g:
             self._counted()
             seg, ab = low & 15, (low >> 4) & 1
             codes = _bytes(g['C'], 2) + _bytes(g['D'], 2)
-            self._station(pi, fixed)
-            self._rt(seg, ab, codes, 16)
+            if self._station(pi, lambda: self._rt(seg, ab, codes, 16)):
+                self._rt(seg, ab, codes, 16)
             self._log('rt', dict(seg=seg, ab=ab, fixed=fixed, text=_text(codes), rt=self.rt, group=name))
         elif 'D' in g:
             self._counted()

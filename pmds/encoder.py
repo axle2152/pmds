@@ -21,7 +21,12 @@ envelope detectors see nothing. The GNU Radio block in pmds_encoder.py is a thin
 Physical layer
   biphase, one sine cycle per bit: a 1 swings the phase + then -, a 0 swings it - then +.
   Phase is zero at every bit boundary and there is no energy at DC.
-  bit_rate  : 23.4375, 46.875, 93.75 or 187.5 bit/s; samp_rate / bit_rate must be whole
+  bit_rate  : 23.4375, 46.875, 93.75 or 187.5 bit/s
+  samp_rate : a whole multiple of the bit rate (192 kHz, 96 kHz and 48 kHz are; 44.1 kHz and
+              2 Msps are not). A bit is a whole number of samples, so any other rate puts the
+              bit rate off; past the specification's 50 ppm the encoder refuses to run
+              (ValueError). Set strict_rate = False to get a warning instead, as the GNU Radio
+              block does.
   deviation : peak phase in degrees
 
 Chosen operating point: compact framing, 93.75 bit/s, 8.6 deg (the defaults). 8.6 deg keeps
@@ -35,7 +40,7 @@ carries the alert text (64-character pages, each sent twice) and extended groups
 Text sources (checked once a second while started)
   ps_file    : if set and readable, its first 8 characters replace ps (show names, etc.)
   rt_file    : if set and readable, its text replaces rt (RadioDJ's Now_Playing.txt, or a
-               .json now-playing file giving artist, title and ISRC)
+               .json now-playing file giving artist and title)
   rt_program : a file holding a rotation line in Stereo Tool's RDS-text style (it overrides
                rt and rt_file); the format is described in pmds.sources
   alert_file : if set and readable, its text replaces alert_text
@@ -46,8 +51,8 @@ import time
 
 import numpy as np
 
-from .codec import (RT_MAX, callsign_to_pi, text_to_codes, codes_to_text, core_group, rt_segments,
-                    rt_group, ext_station, af_code, ext_af, ext_clock, ext_rtplus, isrc_pack, ext_isrc,
+from .codec import (RT_MAX, AF_MAX, callsign_to_pi, text_to_codes, codes_to_text, core_group,
+                    rt_segments, rt_group, ext_station, af_code, ext_af, ext_clock, ext_rtplus,
                     rtplus_tags, blocks_to_bits, rbds_0a, rbds_rt_segments, rbds_2a)
 from .sources import parse_rt_program, now_playing_json, read_text
 
@@ -56,10 +61,13 @@ class Encoder:
     """PMDS encoder. Same parameters as the GNU Radio block. start() begins polling the text
     files, modulate(x) adds the data to each run of samples, stop() ends the polling."""
 
+    RATE_PPM = 50.0           # the specification's limit on the bit rate
+    strict_rate = True        # a sample rate that breaks it: ValueError (False: a warning)
+
     def __init__(self, samp_rate=192000, data_on=1, deviation=8.6, bit_rate=93.75, fmt='compact',
                  call='WAMD', pi='', pty=4, tp=0, ta=0, ps='AM 1710', ps_upper=1, ps_file='',
                  rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,
-                 facility_id=0, af='', isrc='', ext_every=8,
+                 facility_id=0, af='', ext_every=8,
                  alert=0, alert_text='This is a test of the AM data alert flag. This is only a test.',
                  alert_file='', rt_program=''):
         self.samp_rate = samp_rate
@@ -81,7 +89,6 @@ class Encoder:
         self.rt_every = rt_every
         self.facility_id = facility_id
         self.af = af
-        self.isrc = isrc
         self.ext_every = ext_every
         self.alert = alert                       # 0 off, 1 test (PTY 30), 2 emergency (PTY 31)
         self.alert_text = alert_text
@@ -92,9 +99,10 @@ class Encoder:
         self._prog_key, self._prog_parts, self._prog_i, self._prog_t0 = None, [], 0, 0.0
         self._inc_cache = {}                      # included file -> (stamp, text, meta)
         self._rtp_key = None                      # (artist, title) the RT+ item toggle follows
-        self._rt_meta = (None, None, None)       # artist, title, isrc from a JSON now-playing file
-        self._rtp_toggle, self._rtp_pending, self._isrc_pending = 0, 0, 0
-        self._isrc_key, self._clock_min, self._ext_i = None, None, 0
+        self._rt_meta = (None, None)             # artist, title from a JSON now-playing file
+        self._rtp_toggle, self._rtp_pending = 0, 0
+        self._clock_min, self._ext_i = None, 0
+        self._rate_warned = None
         self._page, self._passes, self._alert_on = 0, 0, False
 
         self._lock = threading.Lock()
@@ -171,7 +179,7 @@ class Encoder:
         try:
             st = os.stat(path)
         except OSError:
-            return '', (None, None, None)
+            return '', (None, None)
         stamp = (st.st_mtime_ns, st.st_size)
         hit = self._inc_cache.get(path)
         if hit and hit[0] == stamp:
@@ -179,8 +187,8 @@ class Encoder:
         try:
             text = read_text(path)
         except OSError:
-            return '', (None, None, None)
-        meta = (None, None, None)
+            return '', (None, None)
+        meta = (None, None)
         if path.lower().endswith('.json'):
             text, meta = now_playing_json(text)
         text = ' '.join(text.split())
@@ -190,13 +198,13 @@ class Encoder:
     def _part_text(self, parts, i):
         """The text of part i with its files read in, and any artist/title a .json gave."""
         mode, n, pieces = parts[i % len(parts)]
-        out, meta = [], (None, None, None)
+        out, meta = [], (None, None)
         for kind, val in pieces:
             if kind == 'text':
                 out.append(val)
             else:
                 text, m = self._include(val[1])
-                if m != (None, None, None):
+                if m != (None, None):
                     meta = m
                 out.append(text.upper() if val[0] in 'RF' else text)
         return ' '.join(''.join(out).split()), meta
@@ -244,61 +252,45 @@ class Encoder:
                 e = None
             if e is not None:
                 out.append(e)
-        return out[:6]
-
-    def _current_isrc(self):
-        with self._lock:
-            meta = self._rt_meta
-        if self._prog_parts:
-            for i in range(len(self._prog_parts)):         # any .json in the rotation
-                m = self._part_text(self._prog_parts, i)[1]
-                if m[2]:
-                    return m[2]
-        return meta[2] or str(self.isrc or '')
+        return out[:AF_MAX]
 
     def _next_ext(self):
         """The next extended group, or None. Slots alternate between news (the clock on each new
-        minute, new RT+ or ISRC) and the rotation (station ID, AF, ISRC, RT+), so a song change
-        can't hold up the station ID for long."""
+        minute, new RT+) and the rotation (station ID, AF, RT+), so a song change can't hold
+        up the station ID for long. Every one carries the station's PI."""
+        pi = self.station_pi()
         rt = codes_to_text(self._rt_codes())
         with self._lock:
-            artist, title, _ = self._rt_meta
+            artist, title = self._rt_meta
         if self._prog_parts:                               # the rotation's current part, if a .json
-            artist, title = self._part_text(self._prog_parts, self._prog_i)[1][:2]
+            artist, title = self._part_text(self._prog_parts, self._prog_i)[1]
         tags = rtplus_tags(rt, artist, title)
-        item = tuple(rt[st:st + ln] for _, st, ln in tags) if tags else None
+        item = tuple(sorted(rt[st:st + ln] for _, st, ln in tags)) if tags else None
         if item and item != self._rtp_key:                 # a new song: the item toggle flips
             self._rtp_key = item
             self._rtp_toggle ^= 1
-        isrc = self._current_isrc()
-        if isrc != self._isrc_key:
-            self._isrc_key, self._isrc_pending = isrc, 2
+
+        def rtplus():
+            return ext_rtplus(pi, self._rtp_toggle, 1, *(tags + [None, None])[:2])
 
         def news():
             minute = time.gmtime().tm_min
             if minute != self._clock_min:
                 self._clock_min = minute
-                return 'clock', ext_clock()
+                return 'clock', ext_clock(pi)
             if self._rtp_pending and tags:
                 self._rtp_pending -= 1
-                return 'rt+', ext_rtplus(self._rtp_toggle, 1, *(tags + [None, None])[:2])
-            if self._isrc_pending:
-                self._isrc_pending -= 1
-                g = ext_isrc(isrc)
-                if g:
-                    return 'isrc', g
+                return 'rt+', rtplus()
             return None
 
         def rotation():
             rota = []
             if int(self.facility_id or 0):
-                rota.append(('station', lambda: ext_station(int(self.facility_id))))
+                rota.append(('station', lambda: ext_station(pi, int(self.facility_id))))
             if self._af_entries():
-                rota.append(('af', lambda: ext_af(self._af_entries())))
-            if isrc_pack(isrc) is not None:
-                rota.append(('isrc', lambda: ext_isrc(isrc)))
+                rota.append(('af', lambda: ext_af(pi, self._af_entries())))
             if tags:
-                rota.append(('rt+', lambda: ext_rtplus(self._rtp_toggle, 1, *(tags + [None, None])[:2])))
+                rota.append(('rt+', rtplus))
             if not rota:
                 return None
             name, make = rota[self._ext_i % len(rota)]
@@ -365,7 +357,22 @@ class Encoder:
 
     # ---- waveform ----------------------------------------------------------------------
     def _spb(self):
-        return max(16, int(round(self.samp_rate / float(self.bit_rate))))
+        """Samples per bit. A bit is a whole number of samples, so a sample rate that is not a
+        whole multiple of the bit rate puts the bit rate off: 44.1 kHz by 851 ppm."""
+        exact = float(self.samp_rate) / max(float(self.bit_rate), 1e-6)
+        spb = max(16, int(round(exact)))
+        ppm = (exact / spb - 1.0) * 1e6
+        if abs(ppm) > self.RATE_PPM:
+            msg = ('PMDS: at %g samples/s the bit rate would be %.5g bit/s, %+.0f ppm off %g (the '
+                   'specification allows %g ppm). Use a whole multiple of the bit rate: 192000, '
+                   '96000 or 48000.' % (float(self.samp_rate), float(self.samp_rate) / spb, ppm,
+                                        float(self.bit_rate), self.RATE_PPM))
+            if self.strict_rate:
+                raise ValueError(msg)
+            if self._rate_warned != (self.samp_rate, self.bit_rate):
+                self._rate_warned = (self.samp_rate, self.bit_rate)
+                print('WARNING ' + msg, flush=True)
+        return spb
 
     def _build(self):
         kind, blocks, nbits = self.next_group()
@@ -429,7 +436,7 @@ class Encoder:
             except OSError:
                 continue
             stamps[attr] = stamp
-            meta = (None, None, None)
+            meta = (None, None)
             if attr == '_file_rt' and path.lower().endswith('.json'):
                 text, meta = now_playing_json(text)
             with self._lock:
@@ -442,6 +449,7 @@ class Encoder:
             self._poll_once(stamps)
 
     def start(self):
+        self._spb()                                  # a sample rate that can't work: say so now
         if not self.quiet:
             print('PMDS: %s, PI %04X (%s), PTY %d, %.5g bit/s, +/-%g deg'
                   % (self.fmt, self.station_pi(), self.call, int(self.pty), float(self.bit_rate),
