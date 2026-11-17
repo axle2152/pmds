@@ -1,8 +1,8 @@
 # Parts for the PMDS prototype radio
 
 Everything for steps 2 to 4 of the prototype (see `README.md` in this folder), plus the tools.
-The exact component values come with the step 3 schematic. The assortments below are chosen
-so they cover those values without a second order.
+The step 3 schematic and its exact values are in `FRONT_END.md`. The assortments below cover
+every one of those values, so there's no second order.
 
 Prices are rough guesses from memory, not checked against any shop. Treat them as a guide to
 the total, not a quote.

@@ -6,7 +6,8 @@ built in steps:
 1. **The decoder in C** (`c/`): checked against the Python decoder bit for bit. Done.
 2. **The decoder on a Teensy 4.1**, decoding recordings from its SD card: `teensy_rx`, here.
 3. **A radio front end** on a breadboard: an Si5351 clock, a quadrature sampling mixer and the
-   Teensy Audio Adaptor's line input, receiving the HackRF by cable, with a display.
+   Teensy Audio Adaptor's line input, receiving the HackRF by cable, with a display. The
+   schematic, wiring and build steps are in `FRONT_END.md`.
 4. **A real radio**: antenna, AM audio, a tuning knob.
 5. **A printed circuit board.**
 
@@ -73,4 +74,6 @@ Set `SHOW_GROUPS` to 0 near the top of the sketch to print only the status lines
   in `c/`, then run `python c/sync_firmware.py`. The self-test (`tests/test_pmds.py`)
   fails if the copy falls behind.
 
-The decoder and this sketch are under the Apache 2.0 licence, like `pmds/`.
+The decoder, this sketch and the schematic (`hardware/`) are under the Apache 2.0 licence,
+like `pmds/`. A hardware licence such as CERN-OHL-P may suit the schematic better; that's a
+question for the attorney.
