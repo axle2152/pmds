@@ -36,14 +36,24 @@ What it carries, using the same fields as RDS wherever it can:
 | FM translator | The frequency of the station's FM translator, so a radio can switch over at night |
 | Station ID | The FCC facility ID, which is unique even when call letters are shared |
 | Clock | Date and time, the same way RDS sends it |
-| Song tags | Artist and title marked inside the RadioText (RT+), and the recording's ISRC code |
+| Song tags | Artist and title marked inside the RadioText (RT+) |
 
 **Speed.** About 94 bits per second, which is slow, but it adds up: the station name shows in
-about 5 seconds, a full 64-character text in about 18, and an alert in about 1.
+about 5 seconds, a full 64-character text in about 18, and an alert in about 2.
 
 **Errors.** Every block of data carries a check code. The radio can fix a single wrong bit, and
-it throws away anything that doesn't check out, so text arrives whole or not at all instead of
-showing garbage.
+it throws away anything that doesn't check out, so what shows is nearly always right instead of
+garbage. For the things that matter most it asks twice: a station has to name itself in two
+groups in a row before anything shows, and an alert has to come in two groups in a row before
+the radio acts on it.
+
+**One station at a time.** At night a radio can hear two stations on one frequency, fading in
+and out over each other. If both send PMDS, the radio must not show one station's name over
+the other's text or switch to the other's FM translator. So the station's code rides in the
+identity groups and in the slower groups (translator, clock, song tags), and a line of text
+counts only when it arrives next to a group that names the station on show. In simulation the
+radio then showed one station's data at a time, never a mixture. One case is still open: two
+stations whose data blocks happen to run exactly in step.
 
 **Effect on the audio.** Ordinary radios hear nothing on a clean signal, by design. Radios with a
 synchronous detector (some HD Radio sets and DSP car radios) can hear a faint, steady low tone at
@@ -52,8 +62,10 @@ modulation. On the bench, on a strong signal, it could just be heard under the h
 program playing, and not at all under music. At night, sky-wave echoes turn a little of the data
 into a faint low rumble that any radio can pick up, more the worse the conditions.
 
-**Range.** In tests the data keeps decoding until the station's audio is mostly static, so
-anywhere people are still listening, the data gets through.
+**Range.** Against noise, the data keeps decoding until the station's audio is mostly static.
+Another station on the same frequency, the usual trouble at night, is harder on it. In
+simulation the data holds while the other station is 10 dB weaker; by 6 dB it is lost when the
+programs are heavy with bass, and holds when they are not.
 
 **What a station would need.** A way to phase-modulate the transmitter's RF drive: a small
 exciter box for an older transmitter, the way AM stereo (C-QUAM) exciters worked, or a feature
@@ -96,8 +108,9 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 | File | What it is |
 |---|---|
 | `pmds/` | The core: encoder, decoder, framing and character set, in plain Python and numpy |
-| `tests/test_pmds.py` | Self-test: check code, the specification's test vectors, encode-decode loopback |
+| `tests/test_pmds.py` | Self-test: check code, the specification's test vectors, encode-decode loopback, alerts, two stations on one channel |
 | `tests/test_addon.py` | End to end in GNU Radio: a simulated PMDS station through the all-mode-receiver tuner's AM receiver |
+| `tests/false_displays.py` | A long simulation of fading at the level of bits: how often a radio would show a false alert or the wrong station, and how fast real alerts show |
 | `pmds_encoder.py` | The encoder as a GNU Radio block |
 | `pmds_addon.py` | PMDS for the all-mode-receiver tuner: the decoder in GNU Radio, and what the tuner shows |
 | `pmds_monitor.py` | A window showing every block and group as it's decoded (key I in the tuner) |
@@ -162,6 +175,8 @@ tuner keeps finding the add-on.
     python pmds_channel_test.py                  # every propagation preset, 8.6 degrees
     python pmds_channel_test.py --program bass   # the same with bass-heavy program
     python pmds_channel_test.py --alert          # how fast alerts show and clear
+    python pmds_channel_test.py --co -10         # with another station on the channel, 10 dB down
+    python pmds_channel_test.py --co -6 --co-pmds --presets night1   # ... one that sends PMDS too
     python pmds_check.py pmds_tx.cfile           # decode a recording of the transmitter
 
 The simulator's presets model medium wave: daytime groundwave, the mush zone (set how strong

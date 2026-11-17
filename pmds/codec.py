@@ -27,16 +27,17 @@ Compact blocks and groups
   RT     b1 [0x066]: SEG 3 | A/B 1 | 4 chars
          b2 [0x1BF]: 4 chars | spare 2 | ALERT 2   (8 chars per segment, 8 segments = 64 chars;
                      ALERT 0 none, 1 test, 2 emergency, 3 reserved)
-  ext    b1 [0x03D]: TYPE 4 | 32 payload bits
-         b2 [0x007]: 36 payload bits          (68 payload bits per group)
+  ext    b1 [0x03D]: PI 16 | TYPE 4 | 16 payload bits
+         b2 [0x007]: 36 payload bits          (52 payload bits per group)
            0 station ID  facility ID 24 | ECC 8 (0xA0 = USA)
-           1 AF list     count 3 | up to 6 entries of 9 bits: band 1 (0 FM, 1 AM) | code 8
+           1 AF list     count 3 | up to 5 entries of 9 bits: band 1 (0 FM, 1 AM) | code 8
                          FM code = RDS AF code ((MHz - 87.5) x 10); AM code = (kHz - 530) / 10 + 1
            2 clock       MJD 17 | hour 5 | minute 6 (UTC) | offset sign 1 | half-hours 5 (RDS 4A layout)
            3 RT+         toggle 1 | running 1 | tag1 type 6, start 6, length-1 6 | tag2 type 6, start 6,
                          length-1 5 (the RT+ tag layout; 1 = title, 4 = artist)
-           4 content ID  ISRC 52: country 2 x 5 | registrant 3 x 6 | year 7 | designation 17
-           5-15 reserved
+           4-15 reserved
+         Every extended group names its station: the PI sits where a core group has it, so a
+         receiver can tell another station's group on the same channel from its own.
   Spare bits are sent as 0.
   ALERT: core groups carry a flag, 1 while an alert is on the air, with PTY 31 (RBDS Emergency)
   or 30 (Emergency Test); RadioText groups carry the level itself. Extended groups pause during
@@ -116,7 +117,9 @@ _CALL_3LETTER = {v: k for k, v in _RBDS_3LETTER.items()}
 
 
 def callsign_to_pi(call):
-    """RBDS PI from US call letters (WSB, KDKA, WAMD...), or None."""
+    """RBDS PI from US call letters (WSB, KDKA, WAMD...), or None. With the two exceptions of
+    NRSC-4-B D.7: a code x0yz is sent as Axyz, then a code xy00 as AFxy (so 1000 goes out as
+    AFA1)."""
     call = (call or '').strip().upper().split('-')[0]
     if call in _CALL_3LETTER:
         return _CALL_3LETTER[call]
@@ -124,13 +127,22 @@ def callsign_to_pi(call):
         return None
     a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     n = 676 * a.index(call[1]) + 26 * a.index(call[2]) + a.index(call[3])
-    return (4096 if call[0] == 'K' else 21672) + n
+    pi = (4096 if call[0] == 'K' else 21672) + n
+    if (pi >> 8) & 0xF == 0:
+        pi = 0xA000 | ((pi >> 12) << 8) | (pi & 0xFF)
+    if pi & 0xFF == 0:
+        pi = 0xAF00 | (pi >> 8)
+    return pi
 
 
 def pi_to_callsign(pi):
     """US call letters from an RBDS PI code, or None."""
     if pi in _RBDS_3LETTER:
         return _RBDS_3LETTER[pi]
+    if pi >> 8 == 0xAF:                               # AFxy was xy00
+        pi = (pi & 0xFF) << 8
+    if pi >> 12 == 0xA and 1 <= (pi >> 8) & 0xF <= 9:  # Axyz was x0yz
+        pi = (((pi >> 8) & 0xF) << 12) | (pi & 0xFF)
     if 0x1000 <= pi <= 0x54A7:
         first, n = 'K', pi - 4096
     elif 0x54A8 <= pi <= 0x994F:
@@ -218,17 +230,18 @@ def rt_group(seg, ab, chars8, alert=0):
 
 
 # ---- extended groups -----------------------------------------------------------------------
-EXT_STATION, EXT_AF, EXT_CLOCK, EXT_RTPLUS, EXT_ISRC = 0, 1, 2, 3, 4
-_ISRC_ALNUM = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+EXT_STATION, EXT_AF, EXT_CLOCK, EXT_RTPLUS = 0, 1, 2, 3
+AF_MAX = 5
 
 
-def ext_group(typ, payload68):
-    b1 = ((typ & 15) << 32) | ((payload68 >> 36) & 0xFFFFFFFF)
-    return [make_block(b1, OFFSET['ext1']), make_block(payload68 & ((1 << 36) - 1), OFFSET['ext2'])]
+def ext_group(pi, typ, payload52):
+    """An extended group: the station's PI, the type, then 52 payload bits (16 in block 1)."""
+    b1 = ((pi & 0xFFFF) << 20) | ((typ & 15) << 16) | ((payload52 >> 36) & 0xFFFF)
+    return [make_block(b1, OFFSET['ext1']), make_block(payload52 & ((1 << 36) - 1), OFFSET['ext2'])]
 
 
-def ext_station(facility_id, ecc=0xA0):
-    return ext_group(EXT_STATION, ((facility_id & 0xFFFFFF) << 44) | ((ecc & 0xFF) << 36))
+def ext_station(pi, facility_id, ecc=0xA0):
+    return ext_group(pi, EXT_STATION, ((facility_id & 0xFFFFFF) << 28) | ((ecc & 0xFF) << 20))
 
 
 def af_code(freq):
@@ -246,66 +259,43 @@ def af_freq(entry):
     return ('%.1f MHz' % (87.5 + code / 10.0)) if band == 0 else ('%d kHz' % (530 + 10 * (code - 1)))
 
 
-def ext_af(entries):
-    e = list(entries)[:6]
-    v = len(e) << 65
+def ext_af(pi, entries):
+    e = list(entries)[:AF_MAX]
+    v = len(e) << 49
     for i, x in enumerate(e):
-        v |= (x & 0x1FF) << (56 - 9 * i)
-    return ext_group(EXT_AF, v)
+        v |= (x & 0x1FF) << (40 - 9 * i)
+    return ext_group(pi, EXT_AF, v)
 
 
-def ext_clock(t=None):
+def ext_clock(pi, t=None):
     """RDS clock-time layout: MJD, UTC hour and minute, local offset in half hours."""
     import datetime as _dt
     now = _dt.datetime.now(_dt.timezone.utc) if t is None else t
     mjd = (now.date() - _dt.date(1858, 11, 17)).days
     off = time.localtime().tm_gmtoff // 1800 if t is None else 0
-    v = ((mjd & 0x1FFFF) << 51) | ((now.hour & 31) << 46) | ((now.minute & 63) << 40) \
-        | ((1 if off < 0 else 0) << 39) | ((abs(off) & 31) << 34)
-    return ext_group(EXT_CLOCK, v)
+    v = ((mjd & 0x1FFFF) << 35) | ((now.hour & 31) << 30) | ((now.minute & 63) << 24) \
+        | ((1 if off < 0 else 0) << 23) | ((abs(off) & 31) << 18)
+    return ext_group(pi, EXT_CLOCK, v)
 
 
-def ext_rtplus(toggle, running, tag1, tag2):
-    """tag = (content type, start, length) or None. RT+ types: 1 = ITEM.TITLE, 4 = ITEM.ARTIST."""
+def ext_rtplus(pi, toggle, running, tag1, tag2):
+    """tag = (content type, start, length) or None. RT+ types: 1 = ITEM.TITLE, 4 = ITEM.ARTIST.
+    Tag 1 can be up to 64 characters long and tag 2 up to 32; a longer one is cut there."""
     def t(tag, lbits):
         if not tag:
             return 0, 0, 0
         ct, st, ln = tag
-        return ct & 63, st & 63, max(0, ln - 1) & ((1 << lbits) - 1)
+        return ct & 63, st & 63, min(max(0, ln - 1), (1 << lbits) - 1)
     c1, s1, l1 = t(tag1, 6)
     c2, s2, l2 = t(tag2, 5)
-    v = ((toggle & 1) << 67) | ((running & 1) << 66) | (c1 << 60) | (s1 << 54) | (l1 << 48) \
-        | (c2 << 42) | (s2 << 36) | (l2 << 31)
-    return ext_group(EXT_RTPLUS, v)
-
-
-def isrc_pack(isrc):
-    """'US-RC1-76-07839' or 'USRC17607839' to 52 bits, or None if it isn't an ISRC."""
-    s = ''.join(c for c in str(isrc or '').upper() if c.isalnum())
-    if len(s) != 12 or not s[:2].isalpha() or not s[5:].isdigit() or any(c not in _ISRC_ALNUM for c in s[2:5]):
-        return None
-    v = 0
-    for c in s[:2]:
-        v = (v << 5) | (ord(c) - 65)
-    for c in s[2:5]:
-        v = (v << 6) | _ISRC_ALNUM.index(c)
-    return (v << 24) | (int(s[5:7]) << 17) | int(s[7:])
-
-
-def isrc_unpack(v):
-    a = v >> 24
-    reg = ''.join(_ISRC_ALNUM[(a >> (6 * (2 - i))) & 63] for i in range(3))
-    cc = chr(65 + ((a >> 23) & 31)) + chr(65 + ((a >> 18) & 31))
-    return '%s%s%02d%05d' % (cc, reg, (v >> 17) & 127, v & 0x1FFFF)
-
-
-def ext_isrc(isrc):
-    p = isrc_pack(isrc)
-    return None if p is None else ext_group(EXT_ISRC, p << 16)
+    v = ((toggle & 1) << 51) | ((running & 1) << 50) | (c1 << 44) | (s1 << 38) | (l1 << 32) \
+        | (c2 << 26) | (s2 << 20) | (l2 << 15)
+    return ext_group(pi, EXT_RTPLUS, v)
 
 
 def rtplus_tags(text, artist=None, title=None):
-    """RT+ tags for 'Artist - Title' (or given artist/title) inside the RadioText text."""
+    """RT+ tags for 'Artist - Title' (or given artist/title) inside the RadioText text, the
+    longer one first: tag 1 holds up to 64 characters, tag 2 only 32."""
     tags = []
     if artist is None and title is None and ' - ' in text:
         artist, title = text.split(' - ', 1)
@@ -314,7 +304,7 @@ def rtplus_tags(text, artist=None, title=None):
             i = text.find(part)
             if 0 <= i < 64 and part:
                 tags.append((ct, i, min(len(part), 64 - i)))
-    return tags[:2]
+    return sorted(tags[:2], key=lambda tag: -tag[2])
 
 
 def blocks_to_bits(blocks, nbits=47):

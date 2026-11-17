@@ -127,7 +127,7 @@ class Addon:
             out.update(pi=best.pi, call=self._call, ps=best.ps or '', rt=best.rt or '',
                        pty=best.pty, tp=best.tp, ta=best.ta, alert=best.alert or 0,
                        af=list(best.af_list), ct=best.clock, facility_id=best.facility_id,
-                       isrc=best.isrc, artist=best.artist, title=best.title)
+                       artist=best.artist, title=best.title)
         return out
 
     def readout(self):
@@ -138,7 +138,6 @@ class Addon:
         song = ' / '.join(x for x in (best.artist, best.title) if x)
         extra = '   '.join(x for x in (
             f"facility {best.facility_id}" if best.facility_id else '',
-            f"ISRC {best.isrc}" if best.isrc else '',
             f"RT+ {song}" if song else '') if x)
         return (f"PMDS {'synced' if best.synced else 'lost'} {best.fmt} {best.bit_rate:g} bit/s   "
                 f"data {best.dev_deg():4.1f} deg  SNR {best.snr_db():4.1f} dB  "

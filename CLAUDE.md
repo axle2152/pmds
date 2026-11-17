@@ -38,7 +38,8 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
     python tests/test_pmds.py     # must pass before every commit
     python tests/test_addon.py    # GNU Radio + all-mode-receiver beside this folder; run it when
                                   # pmds_addon.py, the decoder or the tuner's AM receiver changes
-    python pmds_channel_test.py   # needs GNU Radio; --program bass, --alert, --presets, --dev
+    python pmds_channel_test.py   # needs GNU Radio; --program bass, --alert, --presets, --dev, --co
+    python tests/false_displays.py   # long: false alerts and wrong stations in simulated fading
 
 `setup.py` is a fallback for old setuptools (Ubuntu 22.04); version comes from
 `pyproject.toml`. When bumping the version, change `pyproject.toml` and
@@ -81,6 +82,17 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - PMDS doesn't hold the tuner in mono: the tuner's own pilot test decides stereo, and a pilot it
   hears always wins, because PMDS falsely syncs now and then on real C-QUAM stations (their L−R
   is on the same phase; bass panned to one side fills PMDS's band).
+- One station at a time: with several PMDS stations on a channel at night, only the data of
+  the station on show may be displayed. Core and extended groups carry the PI; RadioText
+  counts only next to a core group of that station; a PI needs two core groups in a row and
+  an alert two groups in a row, one of them a core group (spec sections 8 and 9). `pmds_channel_test.py --co` puts a second station on the
+  channel. The ISRC field was dropped in November 2026.
+- Signed alerts: decided against for now (November 2026): who would hold the master key, how
+  stolen keys are cancelled, and who pays were all open. Room is kept (receivers ignore
+  reserved bits and extended types 4 to 15); the principles for a later version are in spec
+  section 12. The ATSC 3.0 signing fees are the example of what to avoid.
+- The encoder needs a sample rate that is a whole multiple of the bit rate (192 kHz in the
+  flowgraph); the library refuses others, the GNU Radio block warns.
 - HD Radio hybrid stations are ruled out (tested November 2026, spec section 10 and its
   figure `docs/pmds_hd_hybrid_spectrum.png`): PMDS's energy falls in the receiver slot of the
   HD reference carriers at ±182 Hz, no bit rate gets out of the way, and fewer than 100 AM
@@ -95,10 +107,15 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 
 ## Testing in a cloud session
 
-- GNU Radio: `apt-get install -y --no-install-recommends gnuradio gr-osmosdr` (Ubuntu 24.04,
-  GNU Radio 3.10.9, system Python 3.12). Python blocks inside a hier block must stay
-  referenced from Python, or the flowgraph segfaults on start.
+- GNU Radio: `apt-get update`, then `apt-get install -y --no-install-recommends gnuradio
+  gr-osmosdr` (Ubuntu 24.04, GNU Radio 3.10.9). Its Python modules are built for the system
+  Python 3.12: run the GNU Radio tools with `/usr/bin/python3.12` when plain `python3` is a
+  newer one. Python blocks inside a hier block must stay referenced from Python, or the
+  flowgraph segfaults on start.
 - `tests/test_addon.py` needs all-mode-receiver: clone axle2152/all-mode-receiver beside this
   folder (it looks for `../all-mode-receiver`), or pass `--radio`.
+- `am_data_tx.grc` holds a copy of `pmds_encoder.py` and `skywave_channel.py` as embedded
+  blocks. Change the file and the copy together; loading the `.grc` with PyYAML and comparing
+  `_source_code` with the file shows whether they still match.
 - To check the install route: `pip install -e .` in a venv, then all-mode-receiver's
   `radio.addons.classes_for('AM')` should list PMDS.

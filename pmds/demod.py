@@ -19,12 +19,16 @@ per bit rate.
 
 The carrier's phase is measured against a local carrier reference (averaged over the last 4
 bits, so fading faster than the 1 Hz PLL can follow is taken out, and the program's own AM
-doesn't multiply what's left), then a matched filter for the one-sine-per-bit biphase, bit
-timing from the phase with the most matched-filter energy (tracks clock drift between the
-transmitter and the receiver), then block sync on the offset words (following bit slips from
-dropped samples or timing jumps), single-bit correction where the block type is known, and
-the group fields, for both framings (pmds.framer). cn_db() gives the C/N the data sees.
-set_strict(True) turns the correction off.
+doesn't multiply what's left). Then the program's leak is taken out: multipath, or another
+station's carrier on the channel, turns some of the program's bass into phase, right in the
+data's band. The receiver has the program (the envelope), so over a few bits at a time it
+finds how much of the envelope and of its slope shows in the phase, and subtracts that. Then
+a matched filter for the one-sine-per-bit biphase, bit timing from the phase with the most
+matched-filter energy (tracks clock drift between the transmitter and the receiver, either
+way), then block sync on the offset words (following bit slips from dropped samples or timing
+jumps), single-bit correction where the block type is known, and the group fields, for both
+framings (pmds.framer). cn_db() gives the C/N the data sees. set_strict(True) turns the
+correction off.
 """
 import math
 
@@ -43,6 +47,9 @@ class Demodulator:
     LEVEL_A   = 0.05          # data level / SNR average, per bit
     ENV_FLOOR = None          # normalize by the envelope, not below this share of the carrier (None: by the carrier)
     LOCAL_BITS = 4            # carrier reference averaged over this many bits (0: the slow 1 s average)
+    CANCEL_BITS = 8           # the program's leak is fitted and removed over this many bits (0: not at all)
+    CANCEL_RIDGE = 1e-4       # keeps the fit quiet when there is no program to fit
+    CANCEL_FLOOR = 0.05       # a fit that explains less of the phase's power than this share is noise
 
     def __init__(self, fs=6000, bit_rate=46.875):
         self.fs, self.bit_rate = float(fs), float(bit_rate)
@@ -71,6 +78,9 @@ class Demodulator:
         self._c = None                            # slow carrier phasor (what the PLL leaves)
         self._L = max(2, int(self.LOCAL_BITS or 1) * self.spb)
         self._zh = np.zeros(self._L, np.complex128)
+        self._W = max(2, int(self.CANCEL_BITS or 1) * self.spb)
+        self._eh = np.ones(self._W + 1)           # envelope and phase, the last W samples
+        self._th_h = np.zeros(self._W)
         self._E = np.zeros(self.spb)              # matched-filter energy at each timing phase
         self._best, self._n, self._last = 0, 0, -10 ** 9
         self._t = None                                # time of the bit being decided, if any
@@ -150,7 +160,10 @@ class Demodulator:
             ref = (cs[L:L + m] - cs[:m]) / L                     # mean of the L samples before ...
             zd = zz[L // 2:L // 2 + m]                           # ... centred on this one
             self._zh = zz[len(zz) - L:]
-            th = (zd * np.conj(ref)).imag / np.maximum(np.abs(ref) ** 2, 1e-6 * abs(self._c) ** 2)
+            u = zd * np.conj(ref) / np.maximum(np.abs(ref) ** 2, 1e-6 * abs(self._c) ** 2)
+            th = u.imag                                          # the phase; u.real is the envelope
+            if self.CANCEL_BITS:
+                th = self._cancel(u.real, th)
         elif self.ENV_FLOOR:
             # the quadrature over the envelope: sin(phase). The program's own AM no longer
             # multiplies whatever phase error the PLL leaves; in a trough the floor keeps it
@@ -178,10 +191,49 @@ class Demodulator:
             k = int(np.argmax(E))
             if E[k] > self.SWITCH * E[b]:
                 self._best = k
+                if n0 + k - self._last >= spb - half // 2:
+                    # the timing moved back across the wrap (a transmitter clock a little fast):
+                    # the new phase is a whole bit past the last decision, and that bit ends in
+                    # this row. Take it now, or it would be dropped and the blocks would slip.
+                    self._last = n0 + k
+                    self._t = (n0 + k) / self.fs
+                    self._bit(row[k])
         self._t = None
         self._n += nrows * spb
         self._rows = rows[nrows * spb:]
         return m
+
+    def _cancel(self, env, th):
+        """Take the program's leak out of the phase. Over a window of CANCEL_BITS bits centred
+        on each sample, fit the phase by least squares to the envelope and to the envelope's
+        slope (a leak that depends on frequency, as two paths make it, shows as slope), and
+        subtract the fit. With no leak the fit still explains a few percent of the phase's
+        power, by chance, and subtracting that only adds noise (it cost 4% of groups at 3 dB
+        C/N). So a fit that explains less than CANCEL_FLOOR of the power is not used at all,
+        and one that explains twice that or more is used in full.
+        Costs CANCEL_BITS / 2 bits of delay."""
+        W, m = self._W, len(th)
+        e = np.concatenate((self._eh, env))
+        t = np.concatenate((self._th_h, th))
+        self._eh, self._th_h = e[len(e) - (W + 1):], t[len(t) - W:]
+        d = np.diff(e) * (self.fs / 600.0)                # the slope, scaled to match e near 100 Hz
+        e = e[1:]
+
+        def mean(x):                                      # window i covers samples i .. i + W - 1
+            cs = np.concatenate(([0.0], np.cumsum(x)))
+            return (cs[W:W + m] - cs[:m]) / W
+        me, md, mt = mean(e), mean(d), mean(t)
+        see = mean(e * e) - me * me + self.CANCEL_RIDGE
+        sdd = mean(d * d) - md * md + self.CANCEL_RIDGE
+        sed = mean(e * d) - me * md
+        set_, sdt = mean(e * t) - me * mt, mean(d * t) - md * mt
+        det = see * sdd - sed * sed
+        k1, k2 = (set_ * sdd - sdt * sed) / det, (sdt * see - set_ * sed) / det
+        told = k1 * set_ + k2 * sdt                       # how much of the phase's power the fit explains
+        share = told / np.maximum(mean(t * t) - mt * mt, 1e-30)
+        keep = np.clip(share / self.CANCEL_FLOOR - 1.0, 0.0, 1.0)   # none below the floor, all from twice it
+        c = W // 2                                        # the sample in the middle of each window
+        return t[c:c + m] - keep * (k1 * (e[c:c + m] - me) + k2 * (d[c:c + m] - md))
 
     def _bit(self, v):
         a = abs(v)
