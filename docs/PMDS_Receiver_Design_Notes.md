@@ -120,10 +120,13 @@ These follow spec section 9 and the reference receiver.
    group of the station on show. A station shows after two core groups in a row with its PI,
    and an alert after two groups in a row that signal it, one of them a core group (spec
    sections 8 and 9).
-6. **Little computing power.** One bit rate at the reference's 6 kHz takes roughly a million
-   simple operations a second, and a few kilobytes of memory. That fits a small microcontroller
-   or a corner of a tuner DSP. RDS, by comparison, demodulates a 57 kHz subcarrier at
-   1187.5 bit/s, more than twelve times PMDS's 93.75 bit/s.
+6. **Little computing power.** The decoder at 6 kHz takes roughly a million simple
+   operations a second. Ported to plain C (`c/` in the repository) and compiled for a Teensy
+   4.1's Cortex-M7, the whole receive path, front end included, is about 14 KB of code and
+   63 KB of memory, most of that memory the resampler's filter. On a PC it decodes about 300
+   times faster than real time; its load on the Teensy is still to be measured. That fits a
+   small microcontroller or a corner of a tuner DSP. RDS, by comparison, demodulates a
+   57 kHz subcarrier at 1187.5 bit/s, more than twelve times PMDS's 93.75 bit/s.
 
 ## 4. What in a radio can spoil the phase
 

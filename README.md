@@ -108,7 +108,10 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 | File | What it is |
 |---|---|
 | `pmds/` | The core: encoder, decoder, framing and character set, in plain Python and numpy |
+| `c/` | The decoder in plain C, for microcontrollers, with a PC test program |
+| `firmware/` | The prototype radio's Teensy 4.1 program (see `firmware/README.md`) |
 | `tests/test_pmds.py` | Self-test: check code, the specification's test vectors, encode-decode loopback, alerts, two stations on one channel |
+| `tests/test_c.py` | The C decoder against the Python one: the same bits from the same signal (needs a C compiler) |
 | `tests/test_addon.py` | End to end in GNU Radio: a simulated PMDS station through the all-mode-receiver tuner's AM receiver |
 | `tests/false_displays.py` | A long simulation of fading at the level of bits: how often a radio would show a false alert or the wrong station, and how fast real alerts show |
 | `pmds_encoder.py` | The encoder as a GNU Radio block |
@@ -125,10 +128,12 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 | Where | What | License |
 |---|---|---|
 | `pmds/` | The encoder, decoder, framing and character set. No GNU Radio needed. | Apache 2.0 (`pmds/LICENSE`, `pmds/NOTICE`) |
+| `c/`, `firmware/` | The decoder in C and the Teensy program | Apache 2.0 |
 | everything else | The GNU Radio blocks, the tuner add-on, bench tools and flowgraph | GPL 3.0 or later (`COPYING`) |
 
-Anyone building a radio or an exciter can take `pmds/` on its own and use it in a commercial
-product. Nothing in it imports GNU Radio or copies from GPL code, and it should stay that way.
+Anyone building a radio or an exciter can take `pmds/` or `c/` on its own and use it in a
+commercial product. Nothing in them imports GNU Radio or copies from GPL code, and it should
+stay that way.
 
 ## Setup
 
