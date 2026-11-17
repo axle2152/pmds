@@ -12,6 +12,9 @@ built in steps:
 
 ## What you need for step 2
 
+The full parts list for every step, with tools and power advice, is in `PARTS.md`. For this
+step:
+
 - A Teensy 4.1 (the version with pins is easiest)
 - A microSD card, any size, formatted FAT32 or exFAT
 - A micro-USB cable that carries data, not just power
