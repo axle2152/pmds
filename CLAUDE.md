@@ -87,6 +87,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   counts only next to a core group of that station; a PI needs two core groups in a row and
   an alert two groups in a row, one of them a core group (spec sections 8 and 9). `pmds_channel_test.py --co` puts a second station on the
   channel. The ISRC field was dropped in November 2026.
+- Signed alerts: decided against for now (November 2026): who would hold the master key, how
+  stolen keys are cancelled, and who pays were all open. Room is kept (receivers ignore
+  reserved bits and extended types 4 to 15); the principles for a later version are in spec
+  section 12. The ATSC 3.0 signing fees are the example of what to avoid.
 - The encoder needs a sample rate that is a whole multiple of the bit rate (192 kHz in the
   flowgraph); the library refuses others, the GNU Radio block warns.
 - HD Radio hybrid stations are ruled out (tested November 2026, spec section 10 and its

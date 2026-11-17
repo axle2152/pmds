@@ -1,6 +1,6 @@
 # PMDS Draft Specification, version 0.2
 
-Michael Foley, KK4EKN · last revised Nov 13, 2026
+Michael Foley, KK4EKN · last revised Nov 17, 2026
 
 ## 1. Scope and status
 
@@ -289,7 +289,8 @@ These items stand between this draft and something a station could run.
 - [ ] Check DSP car tuners whose AM noise reduction treats the quadrature channel as noise (section 10)
 - [ ] A supervised trial on a licensed AM station under 47 CFR 73.127
 - [ ] Define how the encoder takes text and alerts from the connections stations already use for RDS encoders and EAS equipment
-- [ ] Confirm the two ambiguous G0 code points against IEC 62106. Also decide on alert spoofing: like PTY 31 on FM's RDS, the alert flag is unauthenticated, and a later version could sign alerts
+- [ ] Confirm the two ambiguous G0 code points against IEC 62106
+- [ ] Signed alerts: left out of this version (decided November 2026). Like PTY 31 on FM's RDS, the alert flag is unauthenticated: anyone who can transmit on the channel, or get into a station's encoder, can raise one. Signing would stop that, but it needs someone to hold a master key, a way to cancel stolen keys over the air (radios in cars never get updated), and someone to pay for both. Room is kept for it: receivers ignore reserved bits and extended types 4 to 15 (section 5), so a later version can add an authentication group without disturbing older radios. Any later version SHOULD keep to four principles: a signature only unlocks breaking in and raising the volume, never the station's data or the alert's text; any licensed AM station gets a key free or at cost; radios accept more than one master key, so no single holder can lock stations out; and no single person can use a master key alone
 - [ ] RadioText groups carry no PI. Tying each to a core group beside it (section 9) keeps another station's text out unless the two stations' blocks run exactly in step with no block lost at the change, which free-running bit clocks allow only for moments. Folding the PI into the RadioText check word would close that at no cost in air time, but a receiver would then need the PI before it could check a RadioText block
 - [ ] RadioText still has two weak spots in the receiver. The A/B flag is one bit, so a receiver that misses a whole text can join the first half of an old text to the second half of a new one; the two reserved bits of RadioText block 2 could count texts instead, or a receiver can drop segments older than a set time. And a RadioText group repaired by one bit is used as it comes, so a wrong repair shows wrong characters until the next pass (section 11)
 - [ ] Decide whether a later version adds 46.875 bit/s as a second profile (Appendix B)
@@ -357,4 +358,5 @@ The bit rate also sets where the synchronous-detector tone lands, at twice the r
 | 0.2 | Nov 11, 2026 | C-QUAM stereo radios (section 10): the tuner's stricter pilot test, which no PMDS rate passes in simulation; PMDS no longer holds the tuner in mono. False PMDS syncs on C-QUAM stations (section 12) |
 | 0.2 | Nov 12, 2026 | HD Radio hybrid stations tested and excluded (sections 1, 10 and 12): PMDS's energy falls in the receiver slot of the HD reference carriers; a figure shows where |
 | 0.2 | Nov 13, 2026 | **Changes what is sent.** Every extended group now carries the PI; its payload is 52 bits and the AF list holds 5 entries (section 5). The ISRC group is dropped and type 4 is reserved. The bit rate SHALL be within 50 ppm, and an encoder needs a sample rate that is a whole multiple of the bit rate (section 3). Receiver: an alert needs two groups in a row, one of them a core group (section 8); one station at a time, with a PI taken after two core groups, RadioText used only next to a core group of that station and everything cleared on a PI change; the program's leak into the phase cancelled; a bit no longer dropped when the transmitter's clock is the faster (section 9). PI codes follow the two RBDS exceptions for x0yz and xy00. Another station on the same channel, and a mistuned analog radio, simulated (sections 10 and 11); section 11 measured again; Appendix A vectors for the new extended groups |
+| 0.2 | Nov 17, 2026 | Signed alerts left out of this version, with room kept for a later one and the principles it would follow (section 12) |
 | 0.1 | Nov 5, 2026 | First draft |
