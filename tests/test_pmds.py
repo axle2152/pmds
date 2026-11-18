@@ -27,6 +27,8 @@ PMDS self-test, no GNU Radio needed:  python tests/test_pmds.py   (or pytest)
                station before goes; another station's groups on the channel (a short visit,
                an extended group, RadioText) never show under this station's name
   sample rate  the encoder refuses a sample rate that puts the bit rate out of tolerance
+  sketch copy  the Teensy sketch's copy of the C decoder matches c/ (the C decoder itself is
+               checked against this one by tests/test_c.py, which needs a C compiler)
 """
 import datetime
 import itertools
@@ -296,8 +298,14 @@ def test_sample_rate():
     run(44100, strict=False)                              # the GNU Radio block's choice: a warning
 
 
+def test_sketch_copy():
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'c'))
+    import sync_firmware
+    assert not sync_firmware.stale(), 'run python c/sync_firmware.py: ' + ', '.join(sync_firmware.stale())
+
+
 if __name__ == '__main__':
     for t in (test_check_code, test_vectors, test_loopback, test_slips, test_clock_offset, test_alert_in_rt,
-              test_alert_needs_two, test_one_station, test_sample_rate):
+              test_alert_needs_two, test_one_station, test_sample_rate, test_sketch_copy):
         t()
         print('ok  ', t.__name__)

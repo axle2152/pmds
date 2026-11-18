@@ -14,4 +14,12 @@ am_data_tx_epy_block_*.py
 *.cfile
 *.iq
 *.wav
+*.WAV
 *.raw
+*.cf32
+*.cf64
+c/testfiles/
+
+# The C decoder's PC test program, built by make in c/
+c/tools/pmds_decode
+c/tools/pmds_decode.exe
