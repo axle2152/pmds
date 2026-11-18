@@ -63,7 +63,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 
 - New to git and GitHub. Explain git steps plainly and give exact commands.
 - Machines: Windows (radioconda / MSYS2) and a Linux laptop (Ubuntu, editable install with
-  `pip install --user -e .`, no sudo). Both update with `git pull`.
+  `pip install --user --no-build-isolation -e .`, no sudo; without `--no-build-isolation`
+  Ubuntu 22.04's pip 22.0.2 runs `setup.py develop` with the user site off and fails with
+  "Permission denied" on /usr/local, and patching setup.py only hits further setuptools 59
+  bugs). Both update with `git pull`.
 - Hardware is on the owner's bench, not in the cloud session: HackRF transmitter, RTL-SDR
   receivers, Sangean HDR-16 (synchronous detector), C.Crane CC Pocket. Bench and listening
   results come from them. The Soapy HackRF sink runs only whole-MHz rates (2 to 20 Msps), and
@@ -138,4 +141,7 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   itself can be built on the PC against small stand-ins for Arduino's SD and Serial classes;
   its first real build is on the owner's PC.
 - To check the install route: `pip install -e .` in a venv, then all-mode-receiver's
-  `radio.addons.classes_for('AM')` should list PMDS.
+  `radio.addons.classes_for('AM')` should list PMDS. A venv or root misses the laptop's
+  `--user` case: for that, `debootstrap --variant=minbase --components=main,universe
+  --include=python3-pip,python3-numpy jammy <dir>` (script `gutsy`), then install as an
+  ordinary user in the chroot.
