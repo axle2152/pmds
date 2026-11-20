@@ -94,10 +94,13 @@ def run(bit_rate, secs, alert=0):
         def get_gain_range(self, *a):
             raise RuntimeError('none')
 
-        def __getattr__(self, name):
+        def __getattr__(self, name):               # the other osmosdr settings: accepted
             if name.startswith('__'):
                 raise AttributeError(name)
-            return lambda *a, **k: 0
+            try:        # GNU Radio's own methods first: 3.10.1 finds them (to_basic_block...) here
+                return getattr(object.__getattribute__(self, '_impl'), name)
+            except AttributeError:
+                return lambda *a, **k: 0
 
     class Rx(AMReceiver):
         def _make_source(self, args):
