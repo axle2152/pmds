@@ -1,0 +1,22 @@
+{
+  "title": "PMDS: Phase Modulation Data Service",
+  "upload_type": "software",
+  "description": "<p>RDS-style station data for AM radio (station code, name, RadioText, program type and an alert flag), carried as slow phase modulation of a mono AM broadcast carrier: 93.75 bit/s at 8.6 degrees peak deviation, with the envelope, which is what an ordinary AM radio plays, untouched. A draft specification for discussion, not a standard; a reference encoder and decoder in Python; the decoder in C for microcontrollers; and GNU Radio tools for the bench.</p><p>Licences: the specification (docs/PMDS_Draft_Specification_version_0.2.md) is under CC BY 4.0; the Python package (pmds/), the C decoder (c/) and the firmware (firmware/) are under the Apache License 2.0; the GNU Radio tools are under the GPL 3.0 or later. Building PMDS equipment needs no permission and no fee.</p>",
+  "creators": [
+    {
+      "name": "Foley, Michael"
+    }
+  ],
+  "access_right": "open",
+  "license": "other-open",
+  "keywords": [
+    "AM broadcasting",
+    "medium wave",
+    "phase modulation",
+    "RDS",
+    "RBDS",
+    "radio data",
+    "emergency alerts",
+    "GNU Radio"
+  ]
+}
