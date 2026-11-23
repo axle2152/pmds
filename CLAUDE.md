@@ -131,6 +131,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   flowgraph segfaults on start.
 - `tests/test_addon.py` needs all-mode-receiver: clone axle2152/all-mode-receiver beside this
   folder (it looks for `../all-mode-receiver`), or pass `--radio`.
+- The owner's laptop runs GNU Radio 3.10.1 (Ubuntu 22.04), whose `hier_block2` reaches its own
+  methods (`to_basic_block`, `connect`) through `__getattr__`: a stand-in block with a
+  catch-all `__getattr__` must ask `self._impl` first, or the receiver fails to connect it.
+  all-mode-receiver's CLAUDE.md says how to run GNU Radio 3.10.1 in a 22.04 chroot.
 - `am_data_tx.grc` holds a copy of `pmds_encoder.py` and `skywave_channel.py` as embedded
   blocks. Change the file and the copy together; loading the `.grc` with PyYAML and comparing
   `_source_code` with the file shows whether they still match.
