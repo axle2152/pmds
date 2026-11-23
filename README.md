@@ -121,7 +121,7 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 | `pmds_check.py` | Decodes a recording of the transmitter |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
-| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`), receiver design notes (`PMDS_Receiver_Design_Notes.md`) and logos |
+| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`), receiver design notes (`PMDS_Receiver_Design_Notes.md`) and figures |
 
 ## Two licenses
 

@@ -1,6 +1,6 @@
 # PMDS Draft Specification, version 0.2
 
-Michael Foley, KK4EKN · last revised Nov 17, 2026
+Michael Foley, KK4EKN · last revised Nov 23, 2026
 
 ## 1. Scope and status
 
@@ -299,7 +299,7 @@ These items stand between this draft and something a station could run.
 - [ ] Settle the name
 - [ ] Decide on the two remaining proposals: a version field in the core group's reserved bits, and confirming an AF by a matching PI on the FM translator (the alert level now rides in every RadioText group). Extended type 4 is free again now that the ISRC is gone
 - [ ] Done: the reference decoder now times PS, RT and alerts per bit, not per processing block
-- [ ] Attorney review of prior art and licensing before the repository goes public. A patent search in November 2026 (18 queries, forward citations of the key patents, and the claims of the closest live US families read) found no live US patent claiming the physical layer or the framing; the prior art it found is in section 2. The same review should settle two more questions. Whether to register PMDS as a trademark, so the name can be offered to any radio or exciter that meets this specification: a US wordmark search in November 2026 found only one PMDS registration, dead. And the licences for this specification and the logos, which today fall under the repository's GPL 3.0: a documentation licence such as CC BY 4.0 for the specification, and the logos kept out of the open licences as marks. The current logos were made with an AI image tool, so copyright may not cover them (a trademark still can); they can be redrawn by hand
+- [ ] Legal review of prior art and licensing. A patent search in November 2026 (18 queries, forward citations of the key patents, and the claims of the closest live US families read) found no live US patent claiming the physical layer or the framing; the prior art it found is in section 2. Two questions remain. Whether to register PMDS as a trademark, so the name can be offered to any radio or exciter that meets this specification: a US wordmark search in November 2026 found only one PMDS registration, dead. And the licence for this specification, which today falls under the repository's GPL 3.0: a documentation licence such as CC BY 4.0 would suit it better
 - [ ] When the repository goes public, tag a dated release and deposit it with a public archive (Software Heritage or Zenodo, for example), so its publication date is fixed as prior art
 
 ## Appendix A. Test vectors
@@ -359,4 +359,5 @@ The bit rate also sets where the synchronous-detector tone lands, at twice the r
 | 0.2 | Nov 12, 2026 | HD Radio hybrid stations tested and excluded (sections 1, 10 and 12): PMDS's energy falls in the receiver slot of the HD reference carriers; a figure shows where |
 | 0.2 | Nov 13, 2026 | **Changes what is sent.** Every extended group now carries the PI; its payload is 52 bits and the AF list holds 5 entries (section 5). The ISRC group is dropped and type 4 is reserved. The bit rate SHALL be within 50 ppm, and an encoder needs a sample rate that is a whole multiple of the bit rate (section 3). Receiver: an alert needs two groups in a row, one of them a core group (section 8); one station at a time, with a PI taken after two core groups, RadioText used only next to a core group of that station and everything cleared on a PI change; the program's leak into the phase cancelled; a bit no longer dropped when the transmitter's clock is the faster (section 9). PI codes follow the two RBDS exceptions for x0yz and xy00. Another station on the same channel, and a mistuned analog radio, simulated (sections 10 and 11); section 11 measured again; Appendix A vectors for the new extended groups |
 | 0.2 | Nov 17, 2026 | Signed alerts left out of this version, with room kept for a later one and the principles it would follow (section 12). The BBC's 198 kHz transmitters closed on 27 June 2026, not 30 June (section 2). The reference decoder ported to C for microcontrollers (section 1) |
+| 0.2 | Nov 23, 2026 | Section 12: the logos are gone from the repository; the trademark and the specification's licence remain open |
 | 0.1 | Nov 5, 2026 | First draft |

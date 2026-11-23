@@ -61,8 +61,8 @@ the right, 16 bits at 44,100 samples a second, with the station's carrier 12 kHz
 
 The Teensy decodes each file in turn and prints what a radio would show: the call letters,
 the station name, the text, any alert. It ends each file with a summary, including how much
-of the processor the decoder needed. Please send that line back; it's the first real
-measurement of the decoder on a microcontroller.
+of the processor the decoder needed: the measure of how much headroom the Teensy has left
+for the radio's other work.
 
 Set `SHOW_GROUPS` to 0 near the top of the sketch to print only the status lines.
 
@@ -75,5 +75,5 @@ Set `SHOW_GROUPS` to 0 near the top of the sketch to print only the status lines
   fails if the copy falls behind.
 
 The decoder, this sketch and the schematic (`hardware/`) are under the Apache 2.0 licence,
-like `pmds/`. A hardware licence such as CERN-OHL-P may suit the schematic better; that's a
-question for the attorney.
+like `pmds/`. A hardware licence such as CERN-OHL-P may suit the schematic better; that is
+still to be decided.
