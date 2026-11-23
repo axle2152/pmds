@@ -86,8 +86,9 @@ KK4EKN (GitHub axle2152). Experimental; draft spec, not a standard.
 - Free or very cheap for anyone to use: no patent or licence fee (PMDS builds on prior art
   and existing standards, and a fee would be a reason for stations and makers not to bother).
   A patent and prior-art search in November 2026 found no live US patent claiming the
-  physical layer or framing; the prior art is in spec section 2. A trademark for the name and
-  a licence for the specification are open items (spec section 12). Possible next steps:
+  physical layer or framing; the prior art is in spec section 2. The specification is under
+  CC BY 4.0 (its header and the README's licence table); a trademark for the name is an open
+  item (spec section 12). Possible next steps:
   review by broadcast engineers, an industry body (NRSC), and the FCC rules (47 CFR 73.127).
 - 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
   and data energy further from the carrier. 46.875 and 23.4375 bit/s are too slow; they stay
