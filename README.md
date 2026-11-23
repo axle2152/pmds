@@ -220,5 +220,8 @@ method from RDS and RBDS.
 
 ## Credits
 
-Designed and tested on the bench by Michael Foley, KK4EKN. The code and analysis were written
-with Claude (Anthropic).
+PMDS was conceived and directed by Michael Foley, KK4EKN, who made the design decisions and
+ran the bench and listening tests. Most of the code, the simulations and the drafts of these
+documents were written with an AI assistant, Claude (Anthropic), working from those decisions
+and test results; the commit history shows which changes it made. The self-tests and the
+simulator check every change, and the bench and listening results come from real radios.
