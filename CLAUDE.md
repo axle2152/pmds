@@ -69,7 +69,10 @@ real licences in the description) and ignores `CITATION.cff` while that file exi
 CITATION.cff reader takes only one licence, and ours lists three for GitHub's citation box.
 v0.2.0 is DOI 10.5281/zenodo.24481661; the DOI for every version is 10.5281/zenodo.24481660 (README badge,
 CITATION.cff, spec header). A release Zenodo fails on is retried by deleting the release and
-its tag (Zenodo reads files at the tag) and publishing again.
+its tag (Zenodo reads files at the tag) and publishing again. Software Heritage keeps the
+whole repository, every branch: first snapshot 23 November 2026,
+swh:1:snp:e917196ac4265f4ebb56ab0943e8e210d58e5df6 ("Save code now" at
+archive.softwareheritage.org takes a fresh one; its API shows each visit).
 
 ## Working conventions
 
