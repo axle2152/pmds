@@ -12,6 +12,8 @@ authors:
   - family-names: Foley
     given-names: Michael
 version: 0.2.0
+date-released: 2026-11-23
+doi: 10.5281/zenodo.24481660
 repository-code: "https://github.com/axle2152/pmds"
 license:
   - Apache-2.0
