@@ -121,15 +121,19 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 | `pmds_check.py` | Decodes a recording of the transmitter |
 | `skywave_channel.py` | The medium-wave propagation simulator |
 | `am_data_tx.grc` | The bench transmitter (GNU Radio Companion flowgraph) |
-| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`), receiver design notes (`PMDS_Receiver_Design_Notes.md`) and logos |
+| `docs/` | The draft specification (`PMDS_Draft_Specification_version_0.2.md`), receiver design notes (`PMDS_Receiver_Design_Notes.md`) and figures |
+| `CITATION.cff` | How to cite PMDS (GitHub shows it as "Cite this repository") |
 
-## Two licenses
+## Licenses
 
 | Where | What | License |
 |---|---|---|
+| `docs/PMDS_Draft_Specification_version_0.2.md` | The draft specification | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): copy, share and adapt it, with credit |
 | `pmds/` | The encoder, decoder, framing and character set. No GNU Radio needed. | Apache 2.0 (`pmds/LICENSE`, `pmds/NOTICE`) |
 | `c/`, `firmware/` | The decoder in C and the Teensy program | Apache 2.0 |
 | everything else | The GNU Radio blocks, the tuner add-on, bench tools and flowgraph | GPL 3.0 or later (`COPYING`) |
+
+Building a radio or an exciter that follows the specification needs no permission and no fee.
 
 Anyone building a radio or an exciter can take `pmds/` or `c/` on its own and use it in a
 commercial product. Nothing in them imports GNU Radio or copies from GPL code, and it should
@@ -150,11 +154,15 @@ Linux (don't use `sudo`):
 
     git clone https://github.com/axle2152/pmds.git
     cd pmds
-    pip install --user -e .
+    pip install --user --no-build-isolation -e .
+
+The `--no-build-isolation` works around a bug in the older pip that Ubuntu 22.04 ships:
+without it, the install stops with "Permission denied" on a system folder.
 
 The `-e` makes it an editable install: pip leaves a pointer to this folder instead of copying
 the code, so updates to the files here (for example after a `git pull`) take effect the next
-time a program starts. Run it again only if you move the folder.
+time a program starts. Run it again if you move the folder, or when an update changes
+`pyproject.toml` (that file tells the tuner where to find the PMDS add-on).
 
 Without installing, keep the `pmds` folder beside the flowgraph and start GNU Radio Companion
 from this folder.

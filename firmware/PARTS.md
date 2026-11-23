@@ -7,18 +7,19 @@ every one of those values, so there's no second order.
 Prices are rough guesses from memory, not checked against any shop. Treat them as a guide to
 the total, not a quote.
 
-## Power, and the 45 A supply
+## Power
 
 **Steps 2 to 4 need no power supply.** Everything runs from the PC's USB port: the Teensy,
-the audio board, the clock chip, the mixer, the display and a small speaker amplifier. By my
-estimate that is 200 to 300 mA at most, inside what a USB port gives. A USB port also limits
+the audio board, the clock chip, the mixer, the display and a small speaker amplifier. That
+is an estimated 200 to 300 mA at most, inside what a USB port gives. A USB port also limits
 its own current, so a slip on the breadboard browns out the Teensy rather than melting
 anything. Plug in the USB power meter below to see the real draw.
 
-**Keep the 12 V, 45 A supply away from the breadboard.** A short on a breadboard draws
-whatever the supply will give, and 45 A heats a jumper wire red in seconds. If something
-later needs 12 V (the Cuthbert transmitter kit may), put an inline fuse holder with a 1 A
-fast fuse right at the supply's terminals, before anything else.
+**Keep high-current supplies away from the breadboard.** A short on a breadboard draws
+whatever the supply will give: a 12 V supply or battery that can deliver tens of amps heats
+a jumper wire red in seconds. If something later needs 12 V (a transmitter kit, for example),
+put an inline fuse holder with a 1 A fast fuse right at the supply's terminals, before
+anything else.
 
 A current-limited bench supply (adjustable, 0 to 30 V, up to 3 or 5 A, about $50 to $100) is
 the right tool for that later work. Set its current limit to a little above what the circuit
@@ -127,8 +128,8 @@ the input filter has to keep out.
 | Small parts organizer box | $10 | |
 | USB logic analyzer, 8 channels | $12 | Optional: shows what's on the I2C and clock lines when something won't talk |
 
-An oscilloscope isn't needed. Your RTL-SDR and HackRF can show the RF side, and the Teensy
-can report the audio levels it sees.
+An oscilloscope isn't needed. An SDR receiver such as an RTL-SDR can show the RF side, and
+the Teensy can report the audio levels it sees.
 
 ## Software (free)
 
