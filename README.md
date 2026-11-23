@@ -1,5 +1,7 @@
 # PMDS: station data for AM radio
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24481660.svg)](https://doi.org/10.5281/zenodo.24481660)
+
 PMDS (Phase Modulation Data Service, a working name) lets an AM station send the kind of
 information FM stations already send with RDS: the station's name, what's playing, and
 emergency alerts. It works on ordinary mono AM stations, and ordinary AM radios don't hear it.
@@ -95,7 +97,9 @@ can do it, what the decoder needs, and what in a radio can spoil the phase.
 
 ## Status
 
-- Draft specification, version 0.2 (November 2026)
+- Draft specification, version 0.2 (November 2026). Release v0.2.0 is archived on Zenodo:
+  [doi.org/10.5281/zenodo.24481661](https://doi.org/10.5281/zenodo.24481661) (that version) and
+  [doi.org/10.5281/zenodo.24481660](https://doi.org/10.5281/zenodo.24481660) (every version, always the newest)
 - Tested on the bench: a HackRF transmitter, RTL-SDR receivers, an AM radio with a synchronous
   detector, and a medium-wave propagation simulator
 - A longer bench run decoded about 20,000 blocks with under 0.1% lost, with program processed

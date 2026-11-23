@@ -60,8 +60,16 @@ KK4EKN (GitHub axle2152). Experimental; draft spec, not a standard.
     python tests/false_displays.py   # long: false alerts and wrong stations in simulated fading
 
 `setup.py` is a fallback for old setuptools (Ubuntu 22.04); version comes from
-`pyproject.toml`. When bumping the version, change `pyproject.toml` and
-`pmds/__init__.py` together.
+`pyproject.toml`. When bumping the version, change `pyproject.toml`, `pmds/__init__.py`
+and `CITATION.cff` (`version`, `date-released`) together.
+
+Releases: a GitHub release tagged `vX.Y.Z` on main is archived by Zenodo, which reads
+`.zenodo.json` (title, description, creators, keywords, licence "other-open" with the three
+real licences in the description) and ignores `CITATION.cff` while that file exists; its
+CITATION.cff reader takes only one licence, and ours lists three for GitHub's citation box.
+v0.2.0 is DOI 10.5281/zenodo.24481661; the DOI for every version is 10.5281/zenodo.24481660 (README badge,
+CITATION.cff, spec header). A release Zenodo fails on is retried by deleting the release and
+its tag (Zenodo reads files at the tag) and publishing again.
 
 ## Working conventions
 
