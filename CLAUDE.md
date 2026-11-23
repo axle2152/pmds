@@ -63,7 +63,10 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 
 - New to git and GitHub. Explain git steps plainly and give exact commands.
 - Machines: Windows (radioconda / MSYS2) and a Linux laptop (Ubuntu, editable install with
-  `pip install --user -e .`, no sudo). Both update with `git pull`.
+  `pip install --user --no-build-isolation -e .`, no sudo; without `--no-build-isolation`
+  Ubuntu 22.04's pip 22.0.2 runs `setup.py develop` with the user site off and fails with
+  "Permission denied" on /usr/local, and patching setup.py only hits further setuptools 59
+  bugs). Both update with `git pull`.
 - Hardware is on the owner's bench, not in the cloud session: HackRF transmitter, RTL-SDR
   receivers, Sangean HDR-16 (synchronous detector), C.Crane CC Pocket. Bench and listening
   results come from them. The Soapy HackRF sink runs only whole-MHz rates (2 to 20 Msps), and
@@ -92,7 +95,9 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - 93.75 bit/s at 8.6 degrees is the sweet spot: more rate or deviation means more audibility
   and data energy further from the carrier. 46.875 and 23.4375 bit/s are too slow; they stay
   in the decoder for bench comparisons only, and 23.4375 can pass for the C-QUAM pilot in a
-  simple pilot detector (spec section 10).
+  simple pilot detector (spec section 10). Main stays BPSK at 93.75 bit/s and 8.6 degrees:
+  simple wins (November 2026). Faster or quieter variants are tested only on an experimental
+  branch (see Ideas below).
 - PMDS doesn't hold the tuner in mono: the tuner's own pilot test decides stereo, and a pilot it
   hears always wins, because PMDS falsely syncs now and then on real C-QUAM stations (their L−R
   is on the same phase; bass panned to one side fills PMDS's band).
@@ -118,6 +123,16 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 - C-QUAM stereo alongside PMDS: after demodulating the phase, split by frequency. L−R would
   have to be cleared below about 250 Hz at the transmitter; in the receiver, phase content
   above about 200 Hz is L−R and below goes to the PMDS decoder.
+  A proof of concept only: existing C-QUAM radios would still play the data as L−R.
+- Physical-layer variants, on an experimental branch, never main until they win: two
+  orthogonal streams (QPSK-like) for 187.5 bit/s, or part of that gain spent on a lower
+  deviation (two streams should also turn the synchronous detectors' steady 187.5 Hz tone into
+  noise); stronger soft-decision coding. Each one is a switchable option, compared with today's
+  BPSK on the same simulator presets, false-display runs, co-channel test and audibility
+  measures (sync-detector tone, energy above 150 Hz), then by ear on the bench. A changed
+  physical layer needs its own prior-art check. For reference, AMSS (EBU Technical Review,
+  January 2006): biphase, root-raised-cosine shaped, ±20 degrees, 46.875 bit/s (256 samples at
+  DRM's 12 kHz), 47-bit blocks of 36 data and 11 CRC bits taken from the German AMDS.
 
 ## Testing in a cloud session
 
@@ -142,4 +157,7 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
   itself can be built on the PC against small stand-ins for Arduino's SD and Serial classes;
   its first real build is on the owner's PC.
 - To check the install route: `pip install -e .` in a venv, then all-mode-receiver's
-  `radio.addons.classes_for('AM')` should list PMDS.
+  `radio.addons.classes_for('AM')` should list PMDS. A venv or root misses the laptop's
+  `--user` case: for that, `debootstrap --variant=minbase --components=main,universe
+  --include=python3-pip,python3-numpy jammy <dir>` (script `gutsy`), then install as an
+  ordinary user in the chroot.

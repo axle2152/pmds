@@ -150,11 +150,15 @@ Linux (don't use `sudo`):
 
     git clone https://github.com/axle2152/pmds.git
     cd pmds
-    pip install --user -e .
+    pip install --user --no-build-isolation -e .
+
+The `--no-build-isolation` works around a bug in the older pip that Ubuntu 22.04 ships:
+without it, the install stops with "Permission denied" on a system folder.
 
 The `-e` makes it an editable install: pip leaves a pointer to this folder instead of copying
 the code, so updates to the files here (for example after a `git pull`) take effect the next
-time a program starts. Run it again only if you move the folder.
+time a program starts. Run it again if you move the folder, or when an update changes
+`pyproject.toml` (that file tells the tuner where to find the PMDS add-on).
 
 Without installing, keep the `pmds` folder beside the flowgraph and start GNU Radio Companion
 from this folder.
