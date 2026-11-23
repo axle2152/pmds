@@ -117,12 +117,14 @@ fading, heavy fading and a steady weak signal.
 | Wrong RadioText characters, until the next pass | one per 19, 26 and 86 min | one per 18, 20 and 46 min |
 | Wrong facility ID or AF list | none | one facility ID (heavy fading) |
 | Emergency alerts shown, night fading: median, 95% | 2.0 s, 7.0 s | 1.0 s, 4.0 s |
-| Heavy fading | 4.0 s, 21.1 s, 22 of 898 missed | still running |
-| Steady weak signal | 2.0 s, 6.0 s | still running |
+| Heavy fading | 4.0 s, 21.1 s, 22 of 898 missed | 2.0 s, 12.5 s, 2 of 898 missed |
+| Steady weak signal | 2.0 s, 6.0 s | 1.0 s, 2.5 s |
 
 A name or RadioText that is wrong for a moment comes about more often per hour at the higher
 rate, because more groups go by. The rules that keep false alerts and wrong stations away
-hold at both rates.
+hold at both rates. With the same bit errors, the higher rate shows alerts sooner and misses
+fewer in heavy fading, because more groups get through between fades. On the air QPSK's
+bits are noisier at the same power, so this is the framer's side of the story only.
 
 ## What it means
 
