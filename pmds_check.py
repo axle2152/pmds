@@ -33,7 +33,7 @@ from pmds_addon import data_path
 
 
 def show(fr, kind, f):
-    t = '%7.1f s  %-7s %-6g' % (fr.now(), fr.fmt, fr.bit_rate)
+    t = '%7.1f s  %-7s %-6s' % (fr.now(), fr.fmt, fr.rate_name)
     fix = ' (1 bit fixed)' if f.get('fixed') else ''
     if kind == 'core':
         print('%s %-4s PI %04X %-4s PTY %2d TP %d TA %d alert %d  PS[%d] "%s"%s'
@@ -71,9 +71,9 @@ def main():
                 continue
             c = fr.counts
             n = max(1, sum(c.values()))
-            print('%-7s %-6g groups %4d  %-7s  blocks %d: clean %.1f%%  fixed %.1f%%  lost %.1f%%  '
+            print('%-7s %-6s groups %4d  %-7s  blocks %d: clean %.1f%%  fixed %.1f%%  lost %.1f%%  '
                   'data %4.1f deg  PS "%s"  RT "%s"'
-                  % (fr.fmt, fr.bit_rate, fr.groups, 'synced' if fr.synced else 'no sync', sum(c.values()),
+                  % (fr.fmt, fr.rate_name, fr.groups, 'synced' if fr.synced else 'no sync', sum(c.values()),
                      100.0 * c['clean'] / n, 100.0 * c['fixed'] / n, 100.0 * c['lost'] / n,
                      fr.dev_deg(), fr.ps or '', fr.rt))
 

@@ -16,6 +16,7 @@ How often does a PMDS receiver show something false, and how fast does a real al
 
     python tests/false_displays.py                    # 20 hours per channel, a few minutes
     python tests/false_displays.py --hours 600 --alert-hours 40     # the specification's run
+    python tests/false_displays.py --rate 187.5       # EXPERIMENTAL: QPSK's bit rate (same framer)
 
 A long simulation at the level of bits, no GNU Radio needed and not part of the self-test.
 The reference encoder's bits go through a channel with two states, and the reference framer
@@ -31,6 +32,9 @@ First with no alert on the air, counting each time the framer comes to show
   station's text, a wrong facility ID or AF list.
 Then with an emergency alert on for 30 groups in every 80: how long until it shows, how many
 are missed altogether, and whether any is still showing 25 groups after it ended.
+--rate 187.5 (EXPERIMENTAL, branch experimental-qpsk) runs the same framer at the two-stream
+form's bit rate: fades of the same length then take twice the bits, an hour holds twice the
+groups, and the alert schedule is stretched to the same seconds (60 groups in every 160).
 """
 import argparse
 import multiprocessing as mp
@@ -46,7 +50,7 @@ from pmds.framer import CompactFramer  # noqa: E402
 
 RATE = 93.75
 PS, RT = 'AM 1650 ', 'Now playing: Fleetwood Mac - Go Your Own Way on AM 1650 WAMD ...'
-ALERT_ON, ALERT_PERIOD = 30, 80
+ALERT_ON, ALERT_PERIOD, START, AFTER = 30, 80, 10, 25      # in groups (at 93.75 bit/s)
 CHANNELS = (('night fading, 15% of the time in 1 s fades', 0.001, 0.15, 1.0),
             ('heavy fading, 30% of the time in 2 s fades', 0.01, 0.30, 2.0),
             ('steady weak signal, 1.4% bit errors', 0.0143, 0.0, 1.0))
@@ -66,7 +70,8 @@ class _Clock:
 def run(args):
     seed, hours, ber, share, fade_secs, alerts = args
     rng = np.random.default_rng(seed)
-    e = Encoder(samp_rate=6000, call='WAMD', ps=PS, rt=RT, rt_file='', facility_id=73977, af='95.5')
+    e = Encoder(samp_rate=6000, call='WAMD', ps=PS, rt=RT, rt_file='', facility_id=73977, af='95.5',
+                bit_rate=RATE, modulation='qpsk' if RATE == 187.5 else 'bpsk')
     e.quiet = True
     clock = _Clock()
     f = CompactFramer(clock)
@@ -79,14 +84,14 @@ def run(args):
     for g in range(int(hours * 3600 * RATE / 94)):
         if alerts:
             k = g % ALERT_PERIOD
-            if k == 10:
+            if k == START:
                 e.alert, t_on, seen = 2, clock.now(), False
                 st['sent'] += 1
-            elif k == 10 + ALERT_ON:
+            elif k == START + ALERT_ON:
                 e.alert = 0
                 st['missed'] += not seen
                 t_on = None
-            elif k == 10 + ALERT_ON + 25:
+            elif k == START + ALERT_ON + AFTER:
                 st['stuck'] += bool(f.alert)
         for b in codec.blocks_to_bits(e.next_group()[1]):
             if faded:
@@ -122,7 +127,11 @@ def main():
     ap.add_argument('--hours', type=float, default=20, help='simulated hours per channel with no alert on the air')
     ap.add_argument('--alert-hours', type=float, default=4, help='simulated hours per channel with alerts')
     ap.add_argument('--procs', type=int, default=max(1, (os.cpu_count() or 2) - 1))
+    ap.add_argument('--rate', type=float, default=93.75, help='bit rate (187.5: the experimental QPSK form)')
     a = ap.parse_args()
+    global RATE, ALERT_ON, ALERT_PERIOD, START, AFTER
+    RATE = _Clock.bit_rate = a.rate                   # the alert schedule keeps its seconds
+    ALERT_ON, ALERT_PERIOD, START, AFTER = (round(g * RATE / 93.75) for g in (30, 80, 10, 25))
 
     def each(k):
         if not k:

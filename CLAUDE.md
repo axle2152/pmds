@@ -5,6 +5,17 @@ RadioText, PTY, alert flag, extended fields) as slow phase modulation of a mono 
 93.75 bit/s, 8.6 degrees peak deviation, envelope untouched. Owner: Michael Foley, KK4EKN
 (GitHub axle2152). Experimental; draft spec, not a standard.
 
+## This branch: experimental-qpsk
+
+The owner's branch for trying physical-layer variants; main stays BPSK at 93.75 bit/s and
+8.6 degrees. Work here is pushed to `experimental-qpsk` itself (the owner asked for that), and
+nothing moves to main unless a variant wins. First variant (November 2026): QPSK, two streams
+on the 93.75 Hz phase subcarrier, root-raised-cosine shaped (roll-off 0.5), 187.5 bit/s,
+`modulation='qpsk'` in the encoder, decoder, GNU Radio blocks and add-on, with BPSK unchanged
+and still the default. Design, results and open questions: `docs/QPSK_Experiment.md`. The
+C decoder and Teensy sketch stay BPSK (`tests/test_c.py` must still pass); the spec is
+unchanged. Keep BPSK's numbers bit-identical when touching `pmds/demod.py`.
+
 ## Where things are
 
 - `docs/PMDS_Draft_Specification_version_0.2.md`: the spec. Where spec and code disagree, the

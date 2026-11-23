@@ -29,12 +29,20 @@ way), then block sync on the offset words (following bit slips from dropped samp
 jumps), single-bit correction where the block type is known, and the group fields, for both
 framings (pmds.framer). cn_db() gives the C/N the data sees. set_strict(True) turns the
 correction off.
+
+EXPERIMENTAL (branch experimental-qpsk): modulation='qpsk' decodes the two-stream form of
+pmds.qpsk instead: two matched filters (the sine and cosine streams of the shaped symbols),
+two bits per symbol, bit_rate 187.5 at 93.75 symbols per second. A timing error rotates the
+subcarrier and mixes the streams, so the symbol timing comes from the fourth power of the
+matched filters' output (z = sine + j cosine stream), which is largest where the four QPSK
+points line up: per timing phase, the average of Re(-z^4) / |z|^2.
 """
 import math
 
 import numpy as np
 
 from .framer import CompactFramer, RbdsFramer
+from . import qpsk as _qpsk
 
 
 class Demodulator:
@@ -47,15 +55,31 @@ class Demodulator:
     LEVEL_A   = 0.05          # data level / SNR average, per bit
     ENV_FLOOR = None          # normalize by the envelope, not below this share of the carrier (None: by the carrier)
     LOCAL_BITS = 4            # carrier reference averaged over this many bits (0: the slow 1 s average)
+    LOCAL_PASSES = 1          # ... that average taken this many times over (QPSK: see __init__)
     CANCEL_BITS = 8           # the program's leak is fitted and removed over this many bits (0: not at all)
     CANCEL_RIDGE = 1e-4       # keeps the fit quiet when there is no program to fit
     CANCEL_FLOOR = 0.05       # a fit that explains less of the phase's power than this share is noise
 
-    def __init__(self, fs=6000, bit_rate=46.875):
+    def __init__(self, fs=6000, bit_rate=46.875, modulation='bpsk'):
         self.fs, self.bit_rate = float(fs), float(bit_rate)
-        self.spb = int(round(self.fs / self.bit_rate))
+        self.modulation = str(modulation).lower()
+        self.qpsk = self.modulation == 'qpsk'     # experimental: two bits per symbol
+        self.sym_rate = self.bit_rate / 2 if self.qpsk else self.bit_rate
+        self.spb = int(round(self.fs / self.sym_rate))
         n = self.spb
         self._tmpl = np.sin(2 * np.pi * np.arange(n) / n) / (n / 2.0)   # a clean bit reads +/- its peak phase
+        if self.qpsk:                             # a clean symbol reads +/- the deviation setting on each stream
+            ti, tq = _qpsk.templates(n)
+            self._ti, self._tq = ti / np.sum(ti * ti), tq / np.sum(tq * tq)
+        self._ntap = len(self._ti) - 1 if self.qpsk else n - 1
+        if self.qpsk:
+            # One 4-symbol average ripples by up to 20% across the data's band, which smears the
+            # shaped symbols into each other (a clean signal read only 25.6 dB SNR). Taken three
+            # times over, the ripple is below 1% and the reference still follows fading at a few Hz.
+            self.LOCAL_PASSES = 3
+            # The z^4 timing measure is noisier than BPSK's energy: averaged over 64 symbols
+            # instead of 16 it holds on 2 to 3 dB weaker signals, and still follows a 100 ppm clock.
+            self.E_ALPHA = 1 / 64.0
         self._reset_req = False
         self.log = None                           # optional log(framer, kind, fields) per group
         self.compact = CompactFramer(self)
@@ -73,15 +97,21 @@ class Demodulator:
 
     def _clear(self):
         self._reset_req = False
-        self._hist = np.zeros(self.spb - 1)
-        self._rows = np.zeros(0)
+        self._hist = np.zeros(self._ntap)
+        self._rows = np.zeros(0, np.complex128 if self.qpsk else np.float64)
         self._c = None                            # slow carrier phasor (what the PLL leaves)
         self._L = max(2, int(self.LOCAL_BITS or 1) * self.spb)
         self._zh = np.zeros(self._L, np.complex128)
+        box = np.ones(self._L) / self._L                     # the average, taken LOCAL_PASSES times over
+        self._kern = box
+        for _ in range(max(1, int(self.LOCAL_PASSES)) - 1):
+            self._kern = np.convolve(self._kern, box)
+        if len(self._kern) > self._L:
+            self._zh = np.zeros(len(self._kern), np.complex128)
         self._W = max(2, int(self.CANCEL_BITS or 1) * self.spb)
         self._eh = np.ones(self._W + 1)           # envelope and phase, the last W samples
         self._th_h = np.zeros(self._W)
-        self._E = np.zeros(self.spb)              # matched-filter energy at each timing phase
+        self._E = np.zeros(self.spb)              # matched-filter energy at each timing phase (QPSK: the z^4 measure)
         self._best, self._n, self._last = 0, 0, -10 ** 9
         self._t = None                                # time of the bit being decided, if any
         self._amp, self._var = 0.0, 1.0
@@ -156,10 +186,16 @@ class Demodulator:
             # out), so fast fading phase the 1 Hz PLL can't follow is taken out here
             L = self._L
             zz = np.concatenate((self._zh, z))
-            cs = np.concatenate(([0j], np.cumsum(zz)))
-            ref = (cs[L:L + m] - cs[:m]) / L                     # mean of the L samples before ...
-            zd = zz[L // 2:L // 2 + m]                           # ... centred on this one
-            self._zh = zz[len(zz) - L:]
+            if len(self._kern) > L:                              # several passes: one longer filter
+                K = len(self._kern)
+                ref = np.convolve(zz, self._kern, 'valid')[:m]   # the K samples before ...
+                zd = zz[K // 2:K // 2 + m]                       # ... centred on this one
+                self._zh = zz[len(zz) - K:]
+            else:
+                cs = np.concatenate(([0j], np.cumsum(zz)))
+                ref = (cs[L:L + m] - cs[:m]) / L                 # mean of the L samples before ...
+                zd = zz[L // 2:L // 2 + m]                       # ... centred on this one
+                self._zh = zz[len(zz) - L:]
             u = zd * np.conj(ref) / np.maximum(np.abs(ref) ** 2, 1e-6 * abs(self._c) ** 2)
             th = u.imag                                          # the phase; u.real is the envelope
             if self.CANCEL_BITS:
@@ -174,20 +210,29 @@ class Demodulator:
             # the quadrature over the carrier: envelope x sin(phase)
             th = zc.imag / max(abs(self._c) ** 2, 1e-20)
         buf = np.concatenate((self._hist, th))
-        self._hist = buf[len(buf) - (self.spb - 1):]
-        mf = np.correlate(buf, self._tmpl, 'valid')                          # bit ending at each sample
+        self._hist = buf[len(buf) - self._ntap:]
+        if self.qpsk:                                 # symbol ending SPAN symbols after each sample
+            mf = np.correlate(buf, self._ti, 'valid') + 1j * np.correlate(buf, self._tq, 'valid')
+            take = self._sym
+        else:
+            mf = np.correlate(buf, self._tmpl, 'valid')                      # bit ending at each sample
+            take = self._bit
         rows = np.concatenate((self._rows, mf))
         spb, half, E = self.spb, self.spb // 2, self._E
         nrows = len(rows) // spb
-        for r in range(nrows):                        # one bit period at a time
+        for r in range(nrows):                        # one bit (QPSK: symbol) period at a time
             row = rows[r * spb:(r + 1) * spb]
             n0 = self._n + r * spb
             b = self._best
             if n0 + b - self._last >= half:           # never two bits closer than half a bit, so a
                 self._last = n0 + b                   # timing change across the wrap can't add one
                 self._t = (n0 + b) / self.fs
-                self._bit(row[b])
-            E += self.E_ALPHA * (row * row - E)
+                take(row[b])
+            if self.qpsk:
+                z2 = row * row                        # where the four points line up, -z^4 is real
+                E += self.E_ALPHA * (np.real(-z2 * z2) / (np.abs(z2) + 1e-30) - E)
+            else:
+                E += self.E_ALPHA * (row * row - E)
             k = int(np.argmax(E))
             if E[k] > self.SWITCH * E[b]:
                 self._best = k
@@ -197,7 +242,7 @@ class Demodulator:
                     # this row. Take it now, or it would be dropped and the blocks would slip.
                     self._last = n0 + k
                     self._t = (n0 + k) / self.fs
-                    self._bit(row[k])
+                    take(row[k])
         self._t = None
         self._n += nrows * spb
         self._rows = rows[nrows * spb:]
@@ -243,3 +288,8 @@ class Demodulator:
         for f in self.framers:
             f.push(bit)
             f.alert_tick()
+
+    def _sym(self, z):
+        """QPSK: one symbol, the sine stream's bit first, then the cosine stream's."""
+        for v in (z.real, z.imag):
+            self._bit(v)

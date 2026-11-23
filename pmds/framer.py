@@ -92,6 +92,16 @@ class Framer:
     def bit_rate(self):
         return self.dec.bit_rate
 
+    @property
+    def modulation(self):
+        """'bpsk', or 'qpsk' (experimental, branch experimental-qpsk)."""
+        return getattr(self.dec, 'modulation', 'bpsk')
+
+    @property
+    def rate_name(self):
+        """The bit rate for display, '93.75', or '187.5 QPSK' for the two-stream form."""
+        return '%g%s' % (self.bit_rate, ' QPSK' if self.modulation == 'qpsk' else '')
+
     def now(self):
         return self.dec.now()
 

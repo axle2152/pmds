@@ -18,6 +18,8 @@ Output : the same signal with the data added as slow phase modulation, y = x * e
 The parameters, the group schedule and the text sources are described in pmds.encoder.
 The sample rate has to be a whole multiple of the bit rate: 192000, 96000 or 48000. At any
 other rate the bit rate comes out wrong, and this block prints a warning.
+EXPERIMENTAL (branch experimental-qpsk): modulation 'qpsk' with bit_rate 187.5 sends the
+two-stream form (pmds.qpsk); the deviation then sets the same data power as BPSK at that setting.
 The pmds package has to be importable: install it once from the radioconda prompt with
     pip install -e <the folder that holds pmds>
 or keep the pmds folder beside the flowgraph and start GNU Radio Companion from there.
@@ -51,7 +53,7 @@ class blk(Encoder, gr.sync_block):
                  rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,
                  facility_id=0, af='', ext_every=8,
                  alert=0, alert_text='This is a test of the AM data alert flag. This is only a test.',
-                 alert_file='', rt_program=''):
+                 alert_file='', rt_program='', modulation='bpsk'):
         gr.sync_block.__init__(self, name='PMDS Encoder',
                                in_sig=[np.complex64], out_sig=[np.complex64])
         Encoder.__init__(self, samp_rate=samp_rate, data_on=data_on, deviation=deviation,
@@ -59,7 +61,7 @@ class blk(Encoder, gr.sync_block):
                          ps_upper=ps_upper, ps_file=ps_file, rt=rt, rt_file=rt_file, rt_len=rt_len,
                          rt_every=rt_every, facility_id=facility_id, af=af,
                          ext_every=ext_every, alert=alert, alert_text=alert_text,
-                         alert_file=alert_file, rt_program=rt_program)
+                         alert_file=alert_file, rt_program=rt_program, modulation=modulation)
 
     def work(self, input_items, output_items):
         self.modulate(input_items[0], output_items[0])

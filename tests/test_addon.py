@@ -41,19 +41,19 @@ def check(name, ok, detail):
     print(f"  {'ok  ' if ok else 'FAIL'} {name:44s} {detail}")
 
 
-def station(secs, bit_rate, alert, fs=48000):
+def station(secs, bit_rate, alert, fs=48000, modulation='bpsk'):
     """The station at 48 kHz complex baseband: 1 + 0.5 sin(1 kHz), with PMDS on its phase."""
     from pmds.encoder import Encoder
     e = Encoder(samp_rate=fs, deviation=8.6, bit_rate=bit_rate, call='WAMD', ps='AM 1650',
                 rt='Hello, AM radio', rt_file='', alert=alert, alert_text=ALERT_TEXT,
-                facility_id=73977)
+                facility_id=73977, modulation=modulation)
     e.quiet = True
     t = np.arange(int(secs * fs)) / fs
     carrier = (1.0 + 0.5 * np.sin(2 * np.pi * 1000.0 * t)).astype(np.complex64)
     return e.modulate(carrier)
 
 
-def run(bit_rate, secs, alert=0):
+def run(bit_rate, secs, alert=0, modulation='bpsk'):
     from gnuradio import gr, blocks, analog, filter
     from radio.am import AMReceiver
     import radio.addons
@@ -66,7 +66,7 @@ def run(bit_rate, secs, alert=0):
         def load(self):
             return pmds_addon.Addon
     radio.addons._entry_points = lambda: [EntryPoint()]
-    x = station(secs, bit_rate, alert)
+    x = station(secs, bit_rate, alert, modulation=modulation)
 
     class Dongle(gr.hier_block2):
         """The station where the dongle would be: 960 ksps, 20 kHz below the tuned LO, noise."""
@@ -130,14 +130,16 @@ def run(bit_rate, secs, alert=0):
         time.sleep(0.02)
     rx._update_addons(time.monotonic())
     a = rx.addons[0] if rx.addons else None
-    print(f"PMDS at {bit_rate:g} bit/s{', alert on' if alert else ''}: {secs:.0f} s of station "
+    name = f"{bit_rate:g}{' QPSK' if modulation == 'qpsk' else ''} bit/s"
+    print(f"PMDS at {name}{', alert on' if alert else ''}: {secs:.0f} s of station "
           f"in {time.monotonic() - t0:.0f} s")
     check('the add-on attached to the AM receiver', a is not None and a.alive,
           'PMDS' if a is not None else 'not attached')
     if a is None:
         return
-    check('in sync, at the right rate', rx.rds_synced and rx.station.get('bit_rate') == bit_rate,
-          f"synced {rx.rds_synced}, {rx.station.get('bit_rate')} bit/s")
+    check('in sync, at the right rate', rx.rds_synced and rx.station.get('bit_rate') == bit_rate
+          and rx.station.get('modulation', 'bpsk') == modulation,
+          f"synced {rx.rds_synced}, {rx.station.get('bit_rate')} bit/s {rx.station.get('modulation')}")
     check('call letters', (rx.rds_pi, rx.rds_call) == (callsign_to_pi('WAMD'), 'WAMD'),
           f"PI {rx.rds_pi if rx.rds_pi is None else format(rx.rds_pi, '04X')} {rx.rds_call}")
     check('station name', rx.rds_ps == 'AM 1650 ', repr(rx.rds_ps))
@@ -151,7 +153,7 @@ def run(bit_rate, secs, alert=0):
           'never stereo' if stereo_last is None else
           f"stereo at {stereo_last - t0:.1f} s" + (f" (PMDS synced at {synced_at - t0:.1f} s)" if synced_at else ''))
     check("the add-on's line and meter for the window",
-          f"{bit_rate:g} bit/s" in a.readout() and a.meter()[0] == 'PMDS data', a.readout()[:60])
+          name in a.readout() and a.meter()[0] == 'PMDS data', a.readout()[:60])
 
 
 def main():
@@ -172,6 +174,7 @@ def main():
     run(93.75, 30)
     run(93.75, 30, alert=2)
     run(23.4375, 90)
+    run(187.5, 30, modulation='qpsk')             # EXPERIMENTAL (branch experimental-qpsk)
     print('\nAll passed.' if not failed else f'\n{failed} failed.')
     return 1 if failed else 0
 

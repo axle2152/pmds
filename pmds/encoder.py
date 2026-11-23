@@ -28,6 +28,11 @@ Physical layer
               (ValueError). Set strict_rate = False to get a warning instead, as the GNU Radio
               block does.
   deviation : peak phase in degrees
+  modulation: 'bpsk' (the default, as above) or 'qpsk', EXPERIMENTAL (branch experimental-qpsk):
+              two streams on the phase, root-raised-cosine shaped, bit_rate 187.5 at 93.75
+              symbols per second. deviation then sets the same data power as BPSK at that
+              setting (the peak is about 1.37 times higher), and samp_rate must be a whole
+              multiple of the symbol rate. See pmds.qpsk.
 
 Chosen operating point: compact framing, 93.75 bit/s, 8.6 deg (the defaults). 8.6 deg keeps
 the synchronous-detector tone 45 dB below 100% modulation. The other rates
@@ -55,6 +60,7 @@ from .codec import (RT_MAX, AF_MAX, callsign_to_pi, text_to_codes, codes_to_text
                     rt_segments, rt_group, ext_station, af_code, ext_af, ext_clock, ext_rtplus,
                     rtplus_tags, blocks_to_bits, rbds_0a, rbds_rt_segments, rbds_2a)
 from .sources import parse_rt_program, now_playing_json, read_text
+from . import qpsk
 
 
 class Encoder:
@@ -69,7 +75,7 @@ class Encoder:
                  rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,
                  facility_id=0, af='', ext_every=8,
                  alert=0, alert_text='This is a test of the AM data alert flag. This is only a test.',
-                 alert_file='', rt_program=''):
+                 alert_file='', rt_program='', modulation='bpsk'):
         self.samp_rate = samp_rate
         self.data_on = data_on
         self.deviation = deviation
@@ -95,6 +101,8 @@ class Encoder:
         self.alert_file = alert_file
         self._file_alert = None
         self.rt_program = rt_program
+        self.modulation = modulation             # 'bpsk', or 'qpsk' (experimental)
+        self._qacc = None                        # QPSK: shaped symbols still adding up (overlap-add)
         self._file_prog = None                    # the rotation line read from rt_program
         self._prog_key, self._prog_parts, self._prog_i, self._prog_t0 = None, [], 0, 0.0
         self._inc_cache = {}                      # included file -> (stamp, text, meta)
@@ -356,17 +364,24 @@ class Encoder:
         return kind, blocks, 26
 
     # ---- waveform ----------------------------------------------------------------------
+    def _qpsk(self):
+        return str(self.modulation).lower() == 'qpsk'
+
     def _spb(self):
-        """Samples per bit. A bit is a whole number of samples, so a sample rate that is not a
-        whole multiple of the bit rate puts the bit rate off: 44.1 kHz by 851 ppm."""
-        exact = float(self.samp_rate) / max(float(self.bit_rate), 1e-6)
+        """Samples per bit (per symbol with QPSK, two bits each). A bit is a whole number of
+        samples, so a sample rate that is not a whole multiple of the bit rate puts the bit
+        rate off: 44.1 kHz by 851 ppm."""
+        q = self._qpsk()
+        rate = max(float(self.bit_rate), 1e-6) / (2.0 if q else 1.0)
+        exact = float(self.samp_rate) / rate
         spb = max(16, int(round(exact)))
         ppm = (exact / spb - 1.0) * 1e6
         if abs(ppm) > self.RATE_PPM:
-            msg = ('PMDS: at %g samples/s the bit rate would be %.5g bit/s, %+.0f ppm off %g (the '
-                   'specification allows %g ppm). Use a whole multiple of the bit rate: 192000, '
-                   '96000 or 48000.' % (float(self.samp_rate), float(self.samp_rate) / spb, ppm,
-                                        float(self.bit_rate), self.RATE_PPM))
+            what = 'symbol rate' if q else 'bit rate'
+            msg = ('PMDS: at %g samples/s the %s would be %.5g %s, %+.0f ppm off %g (the '
+                   'specification allows %g ppm). Use a whole multiple of the %s: 192000, '
+                   '96000 or 48000.' % (float(self.samp_rate), what, float(self.samp_rate) / spb,
+                                        'symbols/s' if q else 'bit/s', ppm, rate, self.RATE_PPM, what))
             if self.strict_rate:
                 raise ValueError(msg)
             if self._rate_warned != (self.samp_rate, self.bit_rate):
@@ -378,9 +393,32 @@ class Encoder:
         kind, blocks, nbits = self.next_group()
         self.last_group = (kind, blocks)
         spb = self._spb()
+        if self._qpsk():
+            self._build_qpsk(blocks_to_bits(blocks, nbits), spb)
+            return
         tmpl = np.sin(2 * np.pi * np.arange(spb) / spb).astype(np.float32)
         sign = (2 * blocks_to_bits(blocks, nbits) - 1).astype(np.float32)
         self._wave, self._pos = (sign[:, None] * tmpl[None, :]).ravel(), 0
+
+    def _build_qpsk(self, bits, spb):
+        """QPSK: bits 2k and 2k+1 on the two streams of symbol k. The shaped symbols reach SPAN
+        symbols either side of their own slot, so each group's symbols are added into what the
+        groups before left, and only the samples no later symbol can still reach are let out.
+        (A group is always a whole number of symbols: 94 or 104 bits.)"""
+        ti, tq = qpsk.templates(spb)
+        h = qpsk.SPAN * spb
+        if self._qacc is None or len(self._qacc) != 2 * h:
+            self._qacc = np.zeros(2 * h)
+        nsym = len(bits) // 2
+        a = 2.0 * bits[0:2 * nsym:2] - 1
+        b = 2.0 * bits[1:2 * nsym:2] - 1
+        acc = np.zeros(nsym * spb + 2 * h)                      # starts h samples before the slots
+        acc[:2 * h] += self._qacc
+        c = spb // 2                                            # each symbol's centre, mid-slot
+        for k in range(nsym):
+            acc[k * spb + c:k * spb + c + len(ti)] += a[k] * ti + b[k] * tq
+        self._wave, self._pos = acc[:nsym * spb].astype(np.float32), 0
+        self._qacc = acc[nsym * spb:]
 
     def _take(self, n):
         out = np.empty(n, np.float32)
@@ -395,7 +433,8 @@ class Encoder:
         return out
 
     def phase(self, n):
-        """The next n samples of the unit phase waveform (+/-1 at the peaks), float32."""
+        """The next n samples of the unit phase waveform (+/-1 at the peaks; QPSK: the same
+        mean square as BPSK's, so its peaks reach about 1.37), float32."""
         return self._take(n)
 
     def modulate(self, x, out=None):

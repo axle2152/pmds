@@ -139,14 +139,14 @@ blocks:
     label: Bit rate (bit/s)
     label0: '46.875'
     label1: 93.75 (default)
-    label2: ''
+    label2: 187.5 QPSK (experimental)
     label3: ''
     label4: ''
     labels: '[]'
-    num_opts: '2'
+    num_opts: '3'
     option0: '46.875'
     option1: '93.75'
-    option2: '2'
+    option2: '187.5'
     option3: '3'
     option4: '4'
     options: '[0, 1, 2]'
@@ -611,39 +611,42 @@ blocks:
       Output : the same signal with the data added as slow phase modulation, y = x\
       \ * e^(j*theta).\n         The envelope is untouched, so envelope detectors\
       \ see nothing.\n\nThe parameters, the group schedule and the text sources are\
-      \ described in pmds.encoder.\nThe sample rate has to be a whole multiple of the\
-      \ bit rate: 192000, 96000 or 48000. At any\nother rate the bit rate comes out\
-      \ wrong, and this block prints a warning.\nThe pmds package has to be importable: install\
-      \ it once from the radioconda prompt with\n    pip install -e <the folder that\
-      \ holds pmds>\nor keep the pmds folder beside the flowgraph and start GNU Radio\
-      \ Companion from there.\n\"\"\"\nimport os\nimport sys\n\nimport numpy as np\n\
-      from gnuradio import gr\n\ntry:\n    from pmds.encoder import Encoder\nexcept\
-      \ ImportError:                                  # not installed: look in the\
-      \ working folder\n    sys.path.insert(0, os.getcwd())\n    try:\n        from\
-      \ pmds.encoder import Encoder\n    except ImportError:\n        raise ImportError('PMDS:\
-      \ the pmds package was not found. Install it once with '\n                 \
-      \         '\"pip install -e <folder that holds pmds>\", or start GNU Radio '\n\
-      \                          'Companion from that folder.') from None\n\n\nclass\
-      \ blk(Encoder, gr.sync_block):\n    \"\"\"PMDS encoder: RDS-style station data\
-      \ on the carrier's phase. Parameters and text\n    sources are described in\
-      \ pmds.encoder.\"\"\"\n\n    strict_rate = False       # a sample rate the bit\
-      \ rate doesn't divide: warn, don't stop\n\n    def __init__(self, samp_rate=192000, data_on=1,\
-      \ deviation=8.6, bit_rate=93.75, fmt='compact',\n                 call='WAMD',\
-      \ pi='', pty=4, tp=0, ta=0, ps='AM 1710', ps_upper=1, ps_file='',\n        \
-      \         rt='', rt_file='C:/RadioDJv2/Now_Playing.txt', rt_len=64, rt_every=1,\n\
-      \                 facility_id=0, af='', ext_every=8,\n            \
-      \     alert=0, alert_text='This is a test of the AM data alert flag. This is\
-      \ only a test.',\n                 alert_file='', rt_program=''):\n        gr.sync_block.__init__(self,\
-      \ name='PMDS Encoder',\n                               in_sig=[np.complex64],\
-      \ out_sig=[np.complex64])\n        Encoder.__init__(self, samp_rate=samp_rate,\
-      \ data_on=data_on, deviation=deviation,\n                         bit_rate=bit_rate,\
-      \ fmt=fmt, call=call, pi=pi, pty=pty, tp=tp, ta=ta, ps=ps,\n               \
-      \          ps_upper=ps_upper, ps_file=ps_file, rt=rt, rt_file=rt_file, rt_len=rt_len,\n\
-      \                         rt_every=rt_every, facility_id=facility_id, af=af,\n\
-      \                         ext_every=ext_every, alert=alert, alert_text=alert_text,\n\
-      \                         alert_file=alert_file, rt_program=rt_program)\n\n\
-      \    def work(self, input_items, output_items):\n        self.modulate(input_items[0],\
-      \ output_items[0])\n        return len(input_items[0])\n"
+      \ described in pmds.encoder.\nThe sample rate has to be a whole multiple of\
+      \ the bit rate: 192000, 96000 or 48000. At any\nother rate the bit rate comes\
+      \ out wrong, and this block prints a warning.\nEXPERIMENTAL (branch experimental-qpsk):\
+      \ modulation 'qpsk' with bit_rate 187.5 sends the\ntwo-stream form (pmds.qpsk);\
+      \ the deviation then sets the same data power as BPSK at that setting.\nThe\
+      \ pmds package has to be importable: install it once from the radioconda prompt\
+      \ with\n    pip install -e <the folder that holds pmds>\nor keep the pmds folder\
+      \ beside the flowgraph and start GNU Radio Companion from there.\n\"\"\"\nimport\
+      \ os\nimport sys\n\nimport numpy as np\nfrom gnuradio import gr\n\ntry:\n  \
+      \  from pmds.encoder import Encoder\nexcept ImportError:                   \
+      \               # not installed: look in the working folder\n    sys.path.insert(0,\
+      \ os.getcwd())\n    try:\n        from pmds.encoder import Encoder\n    except\
+      \ ImportError:\n        raise ImportError('PMDS: the pmds package was not found.\
+      \ Install it once with '\n                          '\"pip install -e <folder\
+      \ that holds pmds>\", or start GNU Radio '\n                          'Companion\
+      \ from that folder.') from None\n\n\nclass blk(Encoder, gr.sync_block):\n  \
+      \  \"\"\"PMDS encoder: RDS-style station data on the carrier's phase. Parameters\
+      \ and text\n    sources are described in pmds.encoder.\"\"\"\n\n    strict_rate\
+      \ = False       # a sample rate the bit rate doesn't divide: warn, don't stop\n\
+      \n    def __init__(self, samp_rate=192000, data_on=1, deviation=8.6, bit_rate=93.75,\
+      \ fmt='compact',\n                 call='WAMD', pi='', pty=4, tp=0, ta=0, ps='AM\
+      \ 1710', ps_upper=1, ps_file='',\n                 rt='', rt_file='C:/RadioDJv2/Now_Playing.txt',\
+      \ rt_len=64, rt_every=1,\n                 facility_id=0, af='', ext_every=8,\n\
+      \                 alert=0, alert_text='This is a test of the AM data alert flag.\
+      \ This is only a test.',\n                 alert_file='', rt_program='', modulation='bpsk'):\n\
+      \        gr.sync_block.__init__(self, name='PMDS Encoder',\n               \
+      \                in_sig=[np.complex64], out_sig=[np.complex64])\n        Encoder.__init__(self,\
+      \ samp_rate=samp_rate, data_on=data_on, deviation=deviation,\n             \
+      \            bit_rate=bit_rate, fmt=fmt, call=call, pi=pi, pty=pty, tp=tp, ta=ta,\
+      \ ps=ps,\n                         ps_upper=ps_upper, ps_file=ps_file, rt=rt,\
+      \ rt_file=rt_file, rt_len=rt_len,\n                         rt_every=rt_every,\
+      \ facility_id=facility_id, af=af,\n                         ext_every=ext_every,\
+      \ alert=alert, alert_text=alert_text,\n                         alert_file=alert_file,\
+      \ rt_program=rt_program, modulation=modulation)\n\n    def work(self, input_items,\
+      \ output_items):\n        self.modulate(input_items[0], output_items[0])\n \
+      \       return len(input_items[0])\n"
     af: ''''''
     affinity: ''
     alert: alert_level
@@ -660,6 +663,7 @@ blocks:
     fmt: '''compact'''
     maxoutbuf: '0'
     minoutbuf: '0'
+    modulation: '''qpsk'' if data_rate == 187.5 else ''bpsk'''
     pi: ''''''
     ps: ps_text
     ps_file: ''''''

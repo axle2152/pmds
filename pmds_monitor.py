@@ -106,7 +106,7 @@ class PmdsMonitor:
         self._hooked = None
 
     def _log(self, fr, kind, f):                  # GNU Radio thread: build the line, queue it
-        t = '%7.1f s  %-7s %-6g' % (fr.now(), fr.fmt, fr.bit_rate)
+        t = '%7.1f s  %-7s %-6s' % (fr.now(), fr.fmt, fr.rate_name)
         fix = '  (1 bit fixed)' if f.get('fixed') else ''
         grp = f.get('group', '')
         if kind == 'core':
@@ -133,10 +133,10 @@ class PmdsMonitor:
             fr = tb.pmds_best()
             if fr.pi is not None or fr.synced:
                 pi = '%04X %s' % (fr.pi, pi_to_callsign(fr.pi) or '') if fr.pi is not None else 'no PI yet'
-                self.head.set('%-16s "%s"   %s %g bit/s   %s' % (pi, fr.ps or '', fr.fmt, fr.bit_rate,
+                self.head.set('%-16s "%s"   %s %s bit/s   %s' % (pi, fr.ps or '', fr.fmt, fr.rate_name,
                                                                'IN SYNC' if fr.synced else 'no sync'))
             else:
-                self.head.set('searching: 23.4 to 187.5 bit/s, compact and RBDS')
+                self.head.set('searching: 23.4 to 187.5 bit/s and 187.5 QPSK, compact and RBDS')
             c, r = fr.counts, fr.recent(60.0)
             tot, rt = max(1, sum(c.values())), max(1, sum(r.values()))
             pct = lambda d, k, n: 100.0 * d[k] / n

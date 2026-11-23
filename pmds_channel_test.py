@@ -22,6 +22,7 @@ skywave_channel.blk, the 1 Hz carrier PLL and PmdsDecoder from pmds_addon.
     python pmds_channel_test.py --presets steady,night2 --rates 93.75 --dev 10 --ipm 3 --program bass
     python pmds_channel_test.py --presets steady,night1 --co -10            # another station on the channel
     python pmds_channel_test.py --presets night1 --co -6 --co-pmds          # ... carrying PMDS as well
+    python pmds_channel_test.py --qpsk                # EXPERIMENTAL: the two-stream form, 187.5 bit/s
 
 Per run it reports:
   groups   share of the groups sent that decoded
@@ -42,6 +43,9 @@ decoder keeps the stations apart:
 noise, and measures the envelope difference a plain AM radio would hear, 60 to 400 Hz, per
 second, in dB relative to 100% modulation (median / worst 10% / worst second), next to the
 program audio's own level in that band.
+--qpsk (EXPERIMENTAL, branch experimental-qpsk) sends and decodes the two-stream form of
+pmds.qpsk instead: --rates are then bit rates of QPSK (default 187.5, 93.75 symbols/s), and
+--dev sets the same data power as BPSK at that deviation.
 """
 import argparse
 import math
@@ -75,6 +79,7 @@ CO_HZ = 2.0                     # its carrier's offset, Hz (--co-offset)
 CO_PMDS = False                 # it carries PMDS too (--co-pmds)
 CO_STEP = False                 # ... with its blocks exactly in step with the wanted station's (--co-step)
 CO_RT = 'The other station on this channel, with its own text here ...'
+MOD = 'bpsk'                    # 'qpsk': the experimental two-stream form (--qpsk)
 
 
 def _program(tb, seed):
@@ -103,7 +108,7 @@ def run(preset, rate, seed, secs, cn, data_on=True, keep_env=False, fmt='compact
     head = blocks.head(gr.sizeof_gr_complex, int(secs * FS))
     E = AlertCycler if alert else enc_gr.blk
     e = E(samp_rate=FS, data_on=1 if data_on else 0, deviation=DEV, bit_rate=rate, fmt=fmt,
-          call='WAMD', ps=PS, rt=RT, rt_file='', facility_id=73977, af='95.5')
+          call='WAMD', ps=PS, rt=RT, rt_file='', facility_id=73977, af='95.5', modulation=MOD)
     e.quiet = True
     ch = sky.blk(samp_rate=FS, preset=preset, cn_db=cn, ipm_deg=IPM, seed=seed, sky_db=SKY_DB)
     ch.quiet = True
@@ -112,7 +117,8 @@ def run(preset, rate, seed, secs, cn, data_on=True, keep_env=False, fmt='compact
     if CO_DB is not None:                             # the other station: own program, own path
         head2 = blocks.head(gr.sizeof_gr_complex, int(secs * FS))
         e2 = enc_gr.blk(samp_rate=FS, data_on=1 if CO_PMDS else 0, deviation=DEV, bit_rate=rate, fmt=fmt,
-                        call='KZZZ', ps='OTHER', rt=CO_RT, rt_file='', facility_id=12345, af='101.1')
+                        call='KZZZ', ps='OTHER', rt=CO_RT, rt_file='', facility_id=12345, af='101.1',
+                        modulation=MOD)
         e2.quiet = True
         if not CO_STEP:                               # its bits and blocks fall anywhere against ours
             e2.phase(int(np.random.default_rng(seed).integers(1, 94 * FS / rate)))
@@ -130,7 +136,7 @@ def run(preset, rate, seed, secs, cn, data_on=True, keep_env=False, fmt='compact
                                         2 * math.pi * PLL_PULL_HZ / FS, -2 * math.pi * PLL_PULL_HZ / FS)
     ta = firdes.low_pass(1.0, FS, 500.0, 300.0, filter.window.WIN_HAMMING)
     dlp = filter.fir_filter_ccf(FS // PMDS_FS, ta)
-    d = PmdsDecoder(PMDS_FS, rate)
+    d = PmdsDecoder(PMDS_FS, rate, MOD)
     d.LOCAL_BITS, d.ENV_FLOOR = {'local': (4, None), 'carrier': (0, None),
                                  'envelope': (0, FLOOR or 0.25)}[NORM]
     d._clear()
@@ -261,7 +267,9 @@ def main():
                     help='comma list; the hf_ presets are the older shortwave-style ones')
     ap.add_argument('--sky-db', type=float, default=-6.0,
                     help='mush preset: sky wave relative to ground wave, dB')
-    ap.add_argument('--rates', default='93.75', help='comma list; 93.75 is the chosen rate')
+    ap.add_argument('--rates', default=None, help='comma list; 93.75 is the chosen rate (with --qpsk: 187.5)')
+    ap.add_argument('--qpsk', action='store_true',
+                    help='EXPERIMENTAL: the two-stream form (pmds.qpsk), at the same data power per --dev')
     ap.add_argument('--formats', default='compact', help='compact, rbds or both')
     ap.add_argument('--seeds', type=int, default=3)
     ap.add_argument('--secs', type=float, default=180)
@@ -284,13 +292,17 @@ def main():
     ap.add_argument('--alert', action='store_true',
                     help='alert timing: PTY 31 + flag on for 30 groups every 80; how long until it shows')
     a = ap.parse_args()
-    global DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB, CO_DB, CO_HZ, CO_PMDS, CO_STEP
+    global DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB, CO_DB, CO_HZ, CO_PMDS, CO_STEP, MOD
+    MOD = 'qpsk' if a.qpsk else 'bpsk'
+    if a.rates is None:
+        a.rates = '187.5' if a.qpsk else '93.75'
     DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB = a.dev, a.ipm, a.program, a.norm, a.env_floor, a.sky_db
     CO_DB, CO_HZ, CO_PMDS, CO_STEP = a.co, a.co_offset, a.co_pmds, a.co_step
     rates = [float(r) for r in a.rates.split(',')]
     fmt = lambda v: '  -- ' if v is None else '%5.0f' % v
-    print('C/N %g dB, data +/-%g deg, IPM %g deg, %s program, %d s per run, %d seeds%s' % (
-        a.cn, a.dev, a.ipm, a.program, a.secs, a.seeds,
+    print('%sC/N %g dB, data +/-%g deg%s, IPM %g deg, %s program, %d s per run, %d seeds%s' % (
+        'QPSK (experimental), ' if a.qpsk else '', a.cn, a.dev, ' (BPSK-equivalent power)' if a.qpsk else '',
+        a.ipm, a.program, a.secs, a.seeds,
         '' if a.co is None else ', another station %+g dB, %g Hz off%s' % (
             a.co, a.co_offset, (', with PMDS' + (' in step' if a.co_step else '')) if a.co_pmds else '')))
     if a.alert:
