@@ -299,16 +299,17 @@ def test_sample_rate():
 
 
 # ---- EXPERIMENTAL (branch experimental-qpsk): the two-stream physical layer ----
-def _qpsk_station(secs, fs=6000, **kw):
-    e = Encoder(samp_rate=fs, deviation=8.6, bit_rate=187.5, modulation='qpsk', call='WAMD', ps='AM 1650',
+def _qpsk_station(secs, fs=6000, mod='qpsk', **kw):
+    e = Encoder(samp_rate=fs, deviation=8.6, bit_rate=187.5 if mod == 'qpsk' else 93.75, modulation=mod,
+                call='WAMD', ps='AM 1650',
                 rt_file='', **dict(dict(rt='Queen - Bohemian Rhapsody (Remastered 2011 Extended Version)',
                                         facility_id=73977, af='95.5,750'), **kw))
     e.quiet = True
     return e.modulate(np.ones(int(secs * fs), np.complex64))
 
 
-def _qpsk_decode(z, fs=6000):
-    d = Demodulator(fs, 187.5, modulation='qpsk')
+def _qpsk_decode(z, fs=6000, mod='qpsk'):
+    d = Demodulator(fs, 187.5 if mod == 'qpsk' else 93.75, modulation=mod)
     for k in range(0, len(z), 3000):
         d.process(z[k:k + 3000])
     return d
@@ -362,6 +363,36 @@ def test_qpsk_sample_rate():
             assert ok, rate
 
 
+def test_qpsk_low():
+    # half-rate QPSK: 93.75 bit/s, 46.875 symbols/s, the subcarrier at 62.5 Hz
+    fs, rt = 6000, 'Queen - Bohemian Rhapsody (Remastered 2011 Extended Version)'
+    y = _qpsk_station(45, mod='qpsk-low')
+    assert abs(np.mean(np.angle(y) ** 2) - np.radians(8.6) ** 2 / 2) < 0.03 * np.radians(8.6) ** 2
+    f, p = np.fft.rfftfreq(len(y), 1 / fs), np.abs(np.fft.rfft(np.angle(y))) ** 2
+    assert p[(f > 20) & (f < 30)].sum() < 0.002 * p.sum(), 'energy near the C-QUAM pilot'
+    d = _qpsk_decode(y, mod='qpsk-low')
+    c = d.compact
+    assert (d.pi, d.ps, d.rt) == (0x55E3, 'AM 1650 ', rt), (d.pi, d.ps, d.rt)
+    assert c.counts['lost'] == 0 and c.counts['fixed'] == 0 and c.groups >= 42, (c.counts, c.groups)
+    y = _qpsk_station(150, mod='qpsk-low', rt='Clock test')
+    for ppm in (+100, -100):
+        t = np.arange(int(len(y) / (1 + ppm * 1e-6)) - 1) * (1 + ppm * 1e-6)
+        i = t.astype(int)
+        c = _qpsk_decode(y[i] * (1 - (t - i)) + y[i + 1] * (t - i), mod='qpsk-low').compact
+        assert c.counts['lost'] == 0 and c.counts['clean'] > 295, (ppm, c.counts)
+    rng = np.random.default_rng(3)
+    parts, i = [], 0
+    while i < len(y):                                     # drop 5 to 300 samples every 4 to 8 s
+        j = min(len(y), i + int(rng.uniform(4, 8) * fs))
+        parts.append(y[i:j])
+        i = j + int(rng.integers(5, 300))
+    d = _qpsk_decode(np.concatenate(parts), mod='qpsk-low')
+    # it recovers from each jump more slowly than BPSK (timing, place in the cycle, quarter turn):
+    # about 60% of groups kept here, against BPSK's 80%
+    assert (d.ps, d.rt) == ('AM 1650 ', 'Clock test') and d.compact.groups > 0.5 * 150 * 93.75 / 94, \
+        (d.ps, d.rt, d.compact.groups)
+
+
 def test_sketch_copy():
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'c'))
     import sync_firmware
@@ -371,6 +402,6 @@ def test_sketch_copy():
 if __name__ == '__main__':
     for t in (test_check_code, test_vectors, test_loopback, test_slips, test_clock_offset, test_alert_in_rt,
               test_alert_needs_two, test_one_station, test_sample_rate, test_qpsk_loopback,
-              test_qpsk_clock_and_slips, test_qpsk_sample_rate, test_sketch_copy):
+              test_qpsk_clock_and_slips, test_qpsk_sample_rate, test_qpsk_low, test_sketch_copy):
         t()
         print('ok  ', t.__name__)

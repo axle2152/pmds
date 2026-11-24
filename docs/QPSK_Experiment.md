@@ -39,6 +39,8 @@ The comparison is made three ways:
 - `pmds_channel_test.py --qpsk`, `tests/false_displays.py --rate 187.5`,
   `tests/qpsk_measures.py` (new), and QPSK cases in `tests/test_pmds.py` and
   `tests/test_addon.py`.
+- Variant 2, half-rate QPSK: `modulation='qpsk-low'` in the same places; the flowgraph's
+  buttons gain "93.75 QPSK low (experimental)"; `pmds_channel_test.py --qpsk-low`.
 - Not changed: the C decoder and the Teensy sketch (still BPSK only; porting waits until the
   waveform is settled), and the specification.
 
@@ -164,10 +166,74 @@ today's steady tone, and by how much? Only listening on the bench can answer tha
 4. If QPSK is kept: port it to the C decoder, write it into the specification, and give the
    changed physical layer its own prior-art check.
 
+## First bench result
+
+On the bench (November 2026) the CC Pocket did well with 187.5 bit/s QPSK, and the bleed it used
+to show on the skywave simulator seemed less. The Sangean HDR-16, a synchronous detector, still
+heard it, and not very differently from BPSK. That fits the measurements above: a synchronous
+detector hears the phase squared, so what reaches the ear follows the data's power, whatever its
+shape. Turning the tone into noise moved the sound around without removing it, and raising the
+deviation would make it louder. So the next variant moves the sound lower in frequency instead.
+
+## Variant 2: half-rate QPSK (`qpsk-low`)
+
+Today's 93.75 bit/s, sent as QPSK at half the symbol rate (46.875 symbols per second): half the
+bandwidth, with each bit getting the same energy as BPSK's. The subcarrier moves down from
+93.75 Hz to 62.5 Hz, so the data's band is about 27 to 98 Hz, still clear of the 25 Hz C-QUAM
+pilot. A synchronous detector hears it around twice the subcarrier, near 125 to 140 Hz instead
+of BPSK's 187.5 Hz tone, where ears and small speakers are less sensitive. The subcarrier is
+4/3 of the symbol rate, so its phase at a symbol's centre steps by 120 degrees from symbol to
+symbol and repeats every 3 symbols.
+
+The receiver's extra work: the timing search also tries which of the 3 symbols in that cycle it
+is looking at. A wrong place in the cycle together with a timing error of only a sixteenth of
+a symbol turns the four QPSK points by exactly 90 degrees, which the timing measure can't see.
+So when the decoder moves between such equally good guesses, it works out the turn and undoes
+it. After a jump (dropped samples, a deep fade) it can't, so three probe framer pairs watch the
+other quarter turns, and the main pair takes the right turn as soon as a probe hears groups it
+doesn't. Only the main pair is shown, so the station's name and text are kept.
+
+The fair comparison is BPSK at 6.8 degrees: a synchronous detector hears about as much of that
+as of half-rate QPSK at 8.6.
+
+### Results so far
+
+From `tests/qpsk_measures.py`, against today's BPSK at 8.6 degrees:
+
+| | BPSK 8.6° | BPSK 6.8° | Half-rate QPSK 8.6° |
+|---|---|---|---|
+| Energy in the C-QUAM pilot zone, 20 to 30 Hz | 2.4% | 2.4% | 0.0% |
+| Energy above 150 Hz | 2.5% | 2.5% | 0.0% |
+| Peak phase | 8.6° | 6.8° | 11.9° |
+| Synchronous detector, everything it hears, A-weighted | 0 dB | −4.1 dB | −3.9 dB |
+| Mistuned envelope radio, A-weighted | 0 dB | −2.0 dB | **−14.3 dB** |
+
+Groups decoded in 2 minutes of steady noise:
+
+| C/N in 10 kHz | 2 dB | 3 dB | 4 dB | 5 dB | 6 dB | 7 dB | 8 dB |
+|---|---|---|---|---|---|---|---|
+| BPSK 8.6° | 38% | 64% | 90% | 98% | 99% | 99% | 99% |
+| BPSK 6.8° | 0% | 0% | 38% | 71% | 86% | 97% | 99% |
+| Half-rate QPSK 8.6° | 7% | 74% | 86% | 99% | 98% | 99% | 99% |
+
+So half-rate QPSK sounds to a synchronous detector like BPSK at 6.8 degrees, but decodes like
+BPSK at 8.6: about 2 dB better than the BPSK setting that sounds the same. A radio listening on
+its filter skirt hears far less of it, since all of its energy is below 100 Hz.
+
+Its weak point so far is recovering from a jump: with 5 to 300 samples dropped every 4 to 8 s it
+kept 62% of groups, against BPSK's 81%, losing about 2.4 s per drop against 1.2 s. It has to
+find the timing, the place in the cycle and the quarter turn again. Dropped samples come from
+the bench receiver's USB link, not from radio, but a deep fade can also make the timing jump.
+
+The channel simulations (skywave presets, weak night signals, bass-heavy program, a second
+station) are still to be added here.
+
+
 ## Running it
 
     python tests/test_pmds.py                         # includes the QPSK cases
     python tests/qpsk_measures.py                     # waveform, weak signal, dropped samples
     python pmds_channel_test.py --qpsk                # every preset; add --dev 12.2, --cn 10, --co -10 ...
+    python pmds_channel_test.py --qpsk-low            # half-rate QPSK; compare with --dev 6.8 (BPSK)
     python tests/false_displays.py --rate 187.5
     python tests/test_addon.py                        # includes QPSK through the tuner

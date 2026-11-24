@@ -130,7 +130,7 @@ def run(bit_rate, secs, alert=0, modulation='bpsk'):
         time.sleep(0.02)
     rx._update_addons(time.monotonic())
     a = rx.addons[0] if rx.addons else None
-    name = f"{bit_rate:g}{' QPSK' if modulation == 'qpsk' else ''} bit/s"
+    name = f"{bit_rate:g}{ {'qpsk': ' QPSK', 'qpsk-low': ' QPSK low'}.get(modulation, '') } bit/s"
     print(f"PMDS at {name}{', alert on' if alert else ''}: {secs:.0f} s of station "
           f"in {time.monotonic() - t0:.0f} s")
     check('the add-on attached to the AM receiver', a is not None and a.alive,
@@ -175,6 +175,7 @@ def main():
     run(93.75, 30, alert=2)
     run(23.4375, 90)
     run(187.5, 30, modulation='qpsk')             # EXPERIMENTAL (branch experimental-qpsk)
+    run(93.75, 40, modulation='qpsk-low')         # EXPERIMENTAL: half-rate QPSK
     print('\nAll passed.' if not failed else f'\n{failed} failed.')
     return 1 if failed else 0
 

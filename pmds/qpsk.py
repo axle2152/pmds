@@ -35,6 +35,18 @@ The subcarrier is locked to the symbol clock, so a timing error in the receiver 
 the subcarrier's phase and mixes the two streams (a quarter symbol swaps them). The receiver
 therefore times symbols by the fourth power of the matched filter's output, which peaks
 sharply where the four QPSK points line up (see pmds.demod).
+
+Two profiles (PROFILES):
+  'qpsk'      187.5 bit/s: 93.75 symbols/s, subcarrier at the symbol rate (93.75 Hz), as above.
+  'qpsk-low'  93.75 bit/s, today's rate: 46.875 symbols/s, half the bandwidth, the subcarrier at
+              4/3 of the symbol rate (62.5 Hz), so the band is about 27 to 98 Hz, clear of the
+              C-QUAM pilot. A synchronous detector hears the phase squared, around twice the
+              subcarrier: near 125 to 140 Hz instead of BPSK's 187.5 Hz tone, where ears and
+              small speakers are less sensitive (about 3.7 dB less, A-weighted, at the same
+              data power). Each bit gets the same energy as BPSK's.
+With the subcarrier at 4/3 of the symbol rate, its phase at a symbol's centre steps by 120
+degrees from one symbol to the next and repeats every 3 symbols (CYCLE), so the templates come
+in 3 pairs and the receiver also finds which symbol of the 3 it is looking at.
 """
 from functools import lru_cache
 
@@ -42,6 +54,28 @@ import numpy as np
 
 ALPHA = 0.5        # root-raised-cosine roll-off: 0.5 keeps 99% of the energy in 30 to 150 Hz
 SPAN = 4           # pulse length: this many symbols either side of the centre
+
+# name: (bits per symbol, subcarrier / symbol rate as (numerator, denominator))
+PROFILES = {'qpsk': (2, (1, 1)), 'qpsk-low': (2, (4, 3))}
+
+
+def is_qpsk(modulation):
+    return str(modulation).lower() in PROFILES
+
+
+def symbol_rate(modulation, bit_rate):
+    return float(bit_rate) / PROFILES[str(modulation).lower()][0]
+
+
+def cycle(modulation):
+    """How many symbols until the subcarrier's phase at a symbol centre repeats."""
+    return PROFILES[str(modulation).lower()][1][1]
+
+
+def sub_cycles(modulation):
+    """Subcarrier cycles per symbol, as a float."""
+    num, den = PROFILES[str(modulation).lower()][1]
+    return num / float(den)
 
 
 def rrc(spb, alpha=ALPHA, span=SPAN):
@@ -61,15 +95,22 @@ def rrc(spb, alpha=ALPHA, span=SPAN):
     return h * np.sqrt(spb / np.sum(h * h))
 
 
-@lru_cache(maxsize=8)
-def templates(spb):
+@lru_cache(maxsize=32)
+def templates(spb, modulation='qpsk', k=0):
     """The unit phase of one symbol on each stream, centred: (TI, TQ), each 2 * SPAN * spb + 1
     samples, for a symbol centred half a symbol into its slot (where BPSK's sine bit would have
     its middle). TI has the same sense as BPSK's sine bit (a 1 swings the phase + then -).
-    Cached: don't write into the arrays."""
+    For symbol k of the stream (only k mod cycle() matters): the subcarrier's phase at its
+    centre is 2 pi x sub_cycles x (k + 1/2). Cached: don't write into the arrays."""
     g = rrc(spb)
     m = np.arange(-SPAN * spb, SPAN * spb + 1)
-    w = 2 * np.pi * m / spb
-    ti, tq = -g * np.sin(w) / np.sqrt(2), -g * np.cos(w) / np.sqrt(2)
+    r = sub_cycles(modulation)
+    if r == 1.0:                                  # 'qpsk': the phase at every centre is pi
+        w = 2 * np.pi * m / spb
+        ti, tq = -g * np.sin(w) / np.sqrt(2), -g * np.cos(w) / np.sqrt(2)
+    else:
+        ph = 2 * np.pi * r * ((k % cycle(modulation)) + 0.5)
+        w = 2 * np.pi * r * m / spb + ph
+        ti, tq = g * np.sin(w) / np.sqrt(2), g * np.cos(w) / np.sqrt(2)
     ti.flags.writeable = tq.flags.writeable = False
     return ti, tq

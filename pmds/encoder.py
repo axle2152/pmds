@@ -28,11 +28,12 @@ Physical layer
               (ValueError). Set strict_rate = False to get a warning instead, as the GNU Radio
               block does.
   deviation : peak phase in degrees
-  modulation: 'bpsk' (the default, as above) or 'qpsk', EXPERIMENTAL (branch experimental-qpsk):
-              two streams on the phase, root-raised-cosine shaped, bit_rate 187.5 at 93.75
-              symbols per second. deviation then sets the same data power as BPSK at that
-              setting (the peak is about 1.37 times higher), and samp_rate must be a whole
-              multiple of the symbol rate. See pmds.qpsk.
+  modulation: 'bpsk' (the default, as above), or EXPERIMENTAL (branch experimental-qpsk) two
+              streams on the phase, root-raised-cosine shaped: 'qpsk' with bit_rate 187.5 (93.75
+              symbols/s, subcarrier 93.75 Hz) or 'qpsk-low' with bit_rate 93.75 (46.875
+              symbols/s, subcarrier 62.5 Hz). deviation then sets the same data power as BPSK at
+              that setting (the peak is about 1.4 to 1.45 times higher), and samp_rate must be a
+              whole multiple of the symbol rate. See pmds.qpsk.
 
 Chosen operating point: compact framing, 93.75 bit/s, 8.6 deg (the defaults). 8.6 deg keeps
 the synchronous-detector tone 45 dB below 100% modulation. The other rates
@@ -365,14 +366,14 @@ class Encoder:
 
     # ---- waveform ----------------------------------------------------------------------
     def _qpsk(self):
-        return str(self.modulation).lower() == 'qpsk'
+        return qpsk.is_qpsk(self.modulation)
 
     def _spb(self):
         """Samples per bit (per symbol with QPSK, two bits each). A bit is a whole number of
         samples, so a sample rate that is not a whole multiple of the bit rate puts the bit
         rate off: 44.1 kHz by 851 ppm."""
         q = self._qpsk()
-        rate = max(float(self.bit_rate), 1e-6) / (2.0 if q else 1.0)
+        rate = qpsk.symbol_rate(self.modulation, max(float(self.bit_rate), 1e-6)) if q else max(float(self.bit_rate), 1e-6)
         exact = float(self.samp_rate) / rate
         spb = max(16, int(round(exact)))
         ppm = (exact / spb - 1.0) * 1e6
@@ -404,8 +405,13 @@ class Encoder:
         """QPSK: bits 2k and 2k+1 on the two streams of symbol k. The shaped symbols reach SPAN
         symbols either side of their own slot, so each group's symbols are added into what the
         groups before left, and only the samples no later symbol can still reach are let out.
-        (A group is always a whole number of symbols: 94 or 104 bits.)"""
-        ti, tq = qpsk.templates(spb)
+        (A group is always a whole number of symbols: 94 or 104 bits.) With 'qpsk-low' the
+        templates depend on the symbol's place in the 3-symbol cycle, so the symbols are counted
+        from the start of the stream."""
+        mod = str(self.modulation).lower()
+        k0 = getattr(self, '_qk', 0)
+        L = qpsk.cycle(mod)
+        tpl = [qpsk.templates(spb, mod, k) for k in range(L)]
         h = qpsk.SPAN * spb
         if self._qacc is None or len(self._qacc) != 2 * h:
             self._qacc = np.zeros(2 * h)
@@ -416,9 +422,11 @@ class Encoder:
         acc[:2 * h] += self._qacc
         c = spb // 2                                            # each symbol's centre, mid-slot
         for k in range(nsym):
+            ti, tq = tpl[(k0 + k) % L]
             acc[k * spb + c:k * spb + c + len(ti)] += a[k] * ti + b[k] * tq
         self._wave, self._pos = acc[:nsym * spb].astype(np.float32), 0
         self._qacc = acc[nsym * spb:]
+        self._qk = k0 + nsym
 
     def _take(self, n):
         out = np.empty(n, np.float32)

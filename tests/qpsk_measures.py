@@ -18,12 +18,14 @@ measured from the reference encoder's own output, no GNU Radio needed.
     python tests/qpsk_measures.py              # about a minute
     python tests/qpsk_measures.py --quick      # the waveform table only
 
-1. The waveform, at the same data power (8.6 degrees) and with QPSK at 12.2 degrees (the same
-   energy per bit as BPSK at 8.6, i.e. 3 dB more power):
+1. The waveform: today's BPSK at 8.6 degrees and at 6.8 (a synchronous detector hears about
+   4 dB less of it), QPSK at 187.5 bit/s at 8.6 (the same data power) and 12.2 degrees (the same
+   energy per bit as BPSK at 8.6), and half-rate QPSK at 93.75 bit/s at 8.6 degrees:
      where the data's energy sits (the C-QUAM pilot zone is 20 to 30 Hz), the peak phase,
      a synchronous detector perfectly locked (the steady line BPSK makes at 187.5 Hz, and all
-     it hears from 60 to 400 Hz, both relative to 100% modulation), and a mistuned envelope
-     radio, which hears the frequency swing (A-weighted, relative to BPSK).
+     it hears from 60 to 400 Hz, both relative to 100% modulation; all it hears A-weighted,
+     relative to BPSK at 8.6), and a mistuned envelope radio, which hears the frequency swing
+     (A-weighted, relative to BPSK at 8.6).
 2. The weak-signal limit: groups decoded in 2 minutes of steady noise at each C/N.
 3. Dropped samples (5 to 300 every 4 to 8 s, as a USB receiver drops them): groups kept.
 """
@@ -38,8 +40,10 @@ from pmds import Encoder, Demodulator  # noqa: E402
 
 FS = 6000
 CASES = (('BPSK 93.75 bit/s, 8.6 deg', 'bpsk', 93.75, 8.6),
+         ('BPSK 93.75 bit/s, 6.8 deg', 'bpsk', 93.75, 6.8),
          ('QPSK 187.5 bit/s, 8.6 deg', 'qpsk', 187.5, 8.6),
-         ('QPSK 187.5 bit/s, 12.2 deg', 'qpsk', 187.5, 12.2))
+         ('QPSK 187.5 bit/s, 12.2 deg', 'qpsk', 187.5, 12.2),
+         ('QPSK low 93.75 bit/s, 8.6', 'qpsk-low', 93.75, 8.6))
 
 
 def station(mod, rate, dev, secs, fs=FS, rt='Measurement text'):
@@ -74,9 +78,9 @@ def band_power(x, lo, hi, weight=None):
 
 def waveforms():
     print('1. The waveform (90 s of each)')
-    print('%-27s %6s %6s %6s %6s %6s  %8s %9s %9s %8s' % (
-        '', '<20Hz', '20-30', '30-150', '>150', '>200', 'peak', 'sync line', 'sync AC', 'mistuned'))
-    ref = None
+    print('%-27s %6s %6s %6s %6s %6s  %7s %9s %9s %9s %8s' % (
+        '', '<20Hz', '20-30', '30-150', '>150', '>200', 'peak', 'sync line', 'sync AC', 'sync A', 'mistuned'))
+    ref = sref = None
     for name, mod, rate, dev in CASES:
         phi = np.angle(station(mod, rate, dev, 90)).astype(np.float64)
         f, p = psd(phi)
@@ -86,14 +90,17 @@ def waveforms():
         f2, p2 = psd(s)
         line = 10 * np.log10(p2.max() / p2.sum() * np.mean(s ** 2) * 2)
         sync = 10 * np.log10(band_power(s, 60, 400) * 2)
+        sa = 10 * np.log10(band_power(s, 20, 3000, a_weight) * 2)
         fi = np.gradient(phi) * FS / (2 * np.pi)        # the frequency swing, Hz
         mis = 10 * np.log10(band_power(fi, 20, 3000, a_weight))
         ref = mis if ref is None else ref
-        print('%-27s %5.1f%% %5.1f%% %5.1f%% %5.1f%% %5.1f%%  %6.1f°  %6.1f dB  %6.1f dB  %+5.1f dB' % (
+        sref = sa if sref is None else sref
+        print('%-27s %5.1f%% %5.1f%% %5.1f%% %5.1f%% %5.1f%%  %5.1f°  %6.1f dB  %6.1f dB  %+6.1f dB  %+5.1f dB' % (
             name, share(0, 20), share(20, 30), share(30, 150), share(150, 3000), share(200, 3000),
-            np.degrees(np.max(np.abs(phi))), line, sync, mis - ref))
+            np.degrees(np.max(np.abs(phi))), line, sync, sa - sref, mis - ref))
     print('sync line: the strongest single line a synchronous detector hears (BPSK: 187.5 Hz); sync AC: all of it,\n'
-          '60 to 400 Hz; mistuned: what an envelope radio on its filter skirt hears, A-weighted, against BPSK.')
+          '60 to 400 Hz; sync A: all of it, A-weighted, against BPSK at 8.6; mistuned: what an envelope radio on its\n'
+          'filter skirt hears, A-weighted, against BPSK at 8.6.')
 
 
 def decode(z, mod, rate):
@@ -121,7 +128,7 @@ def weak_signal():
 
 def dropped_samples():
     print('\n3. Dropped samples, 5 to 300 every 4 to 8 s: groups kept of those sent (300 s)')
-    for name, mod, rate, dev in CASES[:2]:
+    for name, mod, rate, dev in (CASES[0], CASES[2], CASES[4]):
         y = station(mod, rate, dev, 300)
         rng = np.random.default_rng(3)
         parts, i, drops = [], 0, 0

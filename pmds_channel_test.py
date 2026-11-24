@@ -23,6 +23,7 @@ skywave_channel.blk, the 1 Hz carrier PLL and PmdsDecoder from pmds_addon.
     python pmds_channel_test.py --presets steady,night1 --co -10            # another station on the channel
     python pmds_channel_test.py --presets night1 --co -6 --co-pmds          # ... carrying PMDS as well
     python pmds_channel_test.py --qpsk                # EXPERIMENTAL: the two-stream form, 187.5 bit/s
+    python pmds_channel_test.py --qpsk-low            # EXPERIMENTAL: half-rate QPSK, 93.75 bit/s at 62.5 Hz
 
 Per run it reports:
   groups   share of the groups sent that decoded
@@ -45,7 +46,8 @@ second, in dB relative to 100% modulation (median / worst 10% / worst second), n
 program audio's own level in that band.
 --qpsk (EXPERIMENTAL, branch experimental-qpsk) sends and decodes the two-stream form of
 pmds.qpsk instead: --rates are then bit rates of QPSK (default 187.5, 93.75 symbols/s), and
---dev sets the same data power as BPSK at that deviation.
+--dev sets the same data power as BPSK at that deviation. --qpsk-low does the same for half-rate
+QPSK (93.75 bit/s, 46.875 symbols/s, subcarrier 62.5 Hz; default rate 93.75).
 """
 import argparse
 import math
@@ -270,6 +272,8 @@ def main():
     ap.add_argument('--rates', default=None, help='comma list; 93.75 is the chosen rate (with --qpsk: 187.5)')
     ap.add_argument('--qpsk', action='store_true',
                     help='EXPERIMENTAL: the two-stream form (pmds.qpsk), at the same data power per --dev')
+    ap.add_argument('--qpsk-low', action='store_true',
+                    help='EXPERIMENTAL: half-rate QPSK, 93.75 bit/s with the subcarrier at 62.5 Hz')
     ap.add_argument('--formats', default='compact', help='compact, rbds or both')
     ap.add_argument('--seeds', type=int, default=3)
     ap.add_argument('--secs', type=float, default=180)
@@ -293,15 +297,16 @@ def main():
                     help='alert timing: PTY 31 + flag on for 30 groups every 80; how long until it shows')
     a = ap.parse_args()
     global DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB, CO_DB, CO_HZ, CO_PMDS, CO_STEP, MOD
-    MOD = 'qpsk' if a.qpsk else 'bpsk'
+    MOD = 'qpsk-low' if a.qpsk_low else 'qpsk' if a.qpsk else 'bpsk'
     if a.rates is None:
-        a.rates = '187.5' if a.qpsk else '93.75'
+        a.rates = '187.5' if MOD == 'qpsk' else '93.75'
     DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB = a.dev, a.ipm, a.program, a.norm, a.env_floor, a.sky_db
     CO_DB, CO_HZ, CO_PMDS, CO_STEP = a.co, a.co_offset, a.co_pmds, a.co_step
     rates = [float(r) for r in a.rates.split(',')]
     fmt = lambda v: '  -- ' if v is None else '%5.0f' % v
     print('%sC/N %g dB, data +/-%g deg%s, IPM %g deg, %s program, %d s per run, %d seeds%s' % (
-        'QPSK (experimental), ' if a.qpsk else '', a.cn, a.dev, ' (BPSK-equivalent power)' if a.qpsk else '',
+        {'qpsk': 'QPSK (experimental), ', 'qpsk-low': 'half-rate QPSK (experimental), '}.get(MOD, ''), a.cn, a.dev,
+        ' (BPSK-equivalent power)' if MOD != 'bpsk' else '',
         a.ipm, a.program, a.secs, a.seeds,
         '' if a.co is None else ', another station %+g dB, %g Hz off%s' % (
             a.co, a.co_offset, (', with PMDS' + (' in step' if a.co_step else '')) if a.co_pmds else '')))

@@ -14,7 +14,14 @@ The branch for trying physical-layer variants; main stays BPSK at 93.75 bit/s an
 and nothing moves to main unless a variant wins. First variant (November 2026): QPSK, two streams
 on the 93.75 Hz phase subcarrier, root-raised-cosine shaped (roll-off 0.5), 187.5 bit/s,
 `modulation='qpsk'` in the encoder, decoder, GNU Radio blocks and add-on, with BPSK unchanged
-and still the default. Design, results and open questions: `docs/QPSK_Experiment.md`. The
+and still the default. On the bench the HDR-16 still heard it, about as much as BPSK: a
+synchronous detector hears the data's power (the phase squared), whatever its shape. Second
+variant: `modulation='qpsk-low'`, half-rate QPSK, today's 93.75 bit/s at 46.875 symbols/s on a
+62.5 Hz subcarrier (band about 27 to 98 Hz), which moves the sound lower. Its subcarrier phase
+steps 120 degrees per symbol, so the decoder also searches the place in a 3-symbol cycle, undoes
+quarter turns when it moves between equally good guesses, and keeps three probe framer pairs to
+find the turn again after a jump (only the main pair is shown). Raising the deviation is out for
+synchronous radios. Design, results and open questions: `docs/QPSK_Experiment.md`. The
 C decoder and Teensy sketch stay BPSK (`tests/test_c.py` must still pass); the spec is
 unchanged. Keep BPSK's numbers bit-identical when touching `pmds/demod.py`.
 

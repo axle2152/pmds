@@ -35,7 +35,17 @@ pmds.qpsk instead: two matched filters (the sine and cosine streams of the shape
 two bits per symbol, bit_rate 187.5 at 93.75 symbols per second. A timing error rotates the
 subcarrier and mixes the streams, so the symbol timing comes from the fourth power of the
 matched filters' output (z = sine + j cosine stream), which is largest where the four QPSK
-points line up: per timing phase, the average of Re(-z^4) / |z|^2.
+points line up: per timing phase, the average of Re(-z^4) / |z|^2. modulation='qpsk-low'
+(93.75 bit/s, 46.875 symbols/s, subcarrier 62.5 Hz) is decoded the same way, except that the
+subcarrier's phase at a symbol's centre steps by 120 degrees from symbol to symbol: the timing
+search then also tries which of the 3 symbols in that cycle it is looking at (a wrong guess
+turns the points by 120 degrees, so the z^4 measure rejects it). A wrong place in the cycle
+together with a timing error of only a sixteenth of a symbol turns them by exactly 90 degrees,
+which z^4 can't see. When the decoder moves between such guesses it works out the turn and undoes
+it. After a jump it can't (dropped samples, a deep fade), so three more framer pairs watch the
+other three quarter turns: when the main pair has lost sync and one of them finds it, the main
+pair is turned to match and finds sync again with its station data kept. Only the main pair is
+shown and reported (framers, compact, rbds).
 """
 import math
 
@@ -63,14 +73,24 @@ class Demodulator:
     def __init__(self, fs=6000, bit_rate=46.875, modulation='bpsk'):
         self.fs, self.bit_rate = float(fs), float(bit_rate)
         self.modulation = str(modulation).lower()
-        self.qpsk = self.modulation == 'qpsk'     # experimental: two bits per symbol
-        self.sym_rate = self.bit_rate / 2 if self.qpsk else self.bit_rate
+        self.qpsk = _qpsk.is_qpsk(self.modulation)   # experimental: two bits per symbol
+        self.sym_rate = _qpsk.symbol_rate(self.modulation, self.bit_rate) if self.qpsk else self.bit_rate
+        self._cyc = _qpsk.cycle(self.modulation) if self.qpsk else 1
         self.spb = int(round(self.fs / self.sym_rate))
         n = self.spb
         self._tmpl = np.sin(2 * np.pi * np.arange(n) / n) / (n / 2.0)   # a clean bit reads +/- its peak phase
-        if self.qpsk:                             # a clean symbol reads +/- the deviation setting on each stream
+        if self.qpsk and self._cyc == 1:          # a clean symbol reads +/- the deviation setting on each stream
             ti, tq = _qpsk.templates(n)
             self._ti, self._tq = ti / np.sum(ti * ti), tq / np.sum(tq * tq)
+        elif self.qpsk:
+            # One complex matched filter, h = g e^(j w m); the subcarrier's phase at the symbol's
+            # centre is applied afterwards (self._rot), per place in the cycle.
+            g = _qpsk.rrc(n)
+            m = np.arange(-_qpsk.SPAN * n, _qpsk.SPAN * n + 1)
+            r = _qpsk.sub_cycles(self.modulation)
+            h = g * np.exp(2j * np.pi * r * m / n)
+            self._ti = np.conj(h) / (np.sqrt(2) * np.sum(g * g) / 4.0)   # np.correlate conjugates it
+            self._rot = np.exp(2j * np.pi * r * (np.arange(self._cyc) + 0.5))
         self._ntap = len(self._ti) - 1 if self.qpsk else n - 1
         if self.qpsk:
             # One 4-symbol average ripples by up to 20% across the data's band, which smears the
@@ -79,12 +99,15 @@ class Demodulator:
             self.LOCAL_PASSES = 3
             # The z^4 timing measure is noisier than BPSK's energy: averaged over 64 symbols
             # instead of 16 it holds on 2 to 3 dB weaker signals, and still follows a 100 ppm clock.
-            self.E_ALPHA = 1 / 64.0
+            # 'qpsk-low' symbols are twice as long: 32 of them, the same time.
+            self.E_ALPHA = 1 / 64.0 if self._cyc == 1 else 1 / 32.0
         self._reset_req = False
         self.log = None                           # optional log(framer, kind, fields) per group
-        self.compact = CompactFramer(self)
-        self.rbds = RbdsFramer(self)
-        self.framers = (self.compact, self.rbds)
+        nrot = 4 if self._cyc > 1 else 1          # 'qpsk-low': the main pair and three probes
+        self._compacts = [CompactFramer(self) for _ in range(nrot)]
+        self._rbdses = [RbdsFramer(self) for _ in range(nrot)]
+        self._all = tuple(self._compacts + self._rbdses)
+        self.framers = (self._compacts[0], self._rbdses[0])
         self._clear()
 
     def reset(self):
@@ -92,7 +115,7 @@ class Demodulator:
         self._reset_req = True
 
     def set_strict(self, on):
-        for f in self.framers:
+        for f in self._all:
             f.strict = bool(on)
 
     def _clear(self):
@@ -113,14 +136,20 @@ class Demodulator:
         self._th_h = np.zeros(self._W)
         self._E = np.zeros(self.spb)              # matched-filter energy at each timing phase (QPSK: the z^4 measure)
         self._best, self._n, self._last = 0, 0, -10 ** 9
+        if self._cyc > 1:                         # 'qpsk-low': per place in the cycle, per timing phase
+            self._E, self._best = np.zeros((self._cyc, self.spb)), (0, 0)
+            self._turn = 0                        # quarter turns undone before the framers
         self._t = None                                # time of the bit being decided, if any
         self._amp, self._var = 0.0, 1.0
-        for f in self.framers:
+        for f in self._all:
             f.reset()
 
     # ---- the framer currently worth showing, and its fields ----
     def best(self):
         return max(self.framers, key=lambda f: (f.synced, f.last_group_t))
+
+    compact = property(lambda self: self._compacts[0])             # the compact framer
+    rbds = property(lambda self: self._rbdses[0])                  # the RBDS-native framer
 
     # the best framer's fields, so a decoder reads like one framer
     synced = property(lambda self: self.best().synced)
@@ -211,6 +240,15 @@ class Demodulator:
             th = zc.imag / max(abs(self._c) ** 2, 1e-20)
         buf = np.concatenate((self._hist, th))
         self._hist = buf[len(buf) - self._ntap:]
+        if self.qpsk and self._cyc > 1:               # 'qpsk-low': the complex matched filter
+            mf = np.correlate(buf, self._ti, 'valid')
+            rows = np.concatenate((self._rows, mf))
+            nrows = len(rows) // self.spb
+            self._cycle_rows(rows, nrows)
+            self._t = None
+            self._n += nrows * self.spb
+            self._rows = rows[nrows * self.spb:]
+            return m
         if self.qpsk:                                 # symbol ending SPAN symbols after each sample
             mf = np.correlate(buf, self._ti, 'valid') + 1j * np.correlate(buf, self._tq, 'valid')
             take = self._sym
@@ -293,3 +331,70 @@ class Demodulator:
         """QPSK: one symbol, the sine stream's bit first, then the cosine stream's."""
         for v in (z.real, z.imag):
             self._bit(v)
+
+    def _cycle_rows(self, rows, nrows):
+        """'qpsk-low': the timing loop of process(), with the place in the 3-symbol cycle as a
+        second unknown. Row R (samples R*spb ..) holds, for the guess (c, t), a symbol centred
+        at sample t whose place in the cycle is (R - c) mod 3."""
+        spb, half, E, L = self.spb, self.spb // 2, self._E, self._cyc
+        cs = np.arange(L)
+
+        r_sub = _qpsk.sub_cycles(self.modulation)
+
+        def sym(row, R, c, t):                    # mf turned by the subcarrier's phase: I + jQ
+            return 1j * np.conj(row[t] * self._rot[(R - c) % L]) * self._TURNS[self._turn]
+
+        def rho(n, c):
+            # how far guess (c, n mod spb) turns the points; the same at every symbol it decides
+            return 2 * np.pi * (((r_sub * n / spb) % 1.0) - r_sub * ((((n // spb) - c) % L) + 0.5))
+        for r in range(nrows):
+            row = rows[r * spb:(r + 1) * spb]
+            n0 = self._n + r * spb
+            R = n0 // spb
+            c, t = self._best
+            if n0 + t - self._last >= half:
+                self._last = n0 + t
+                self._t = (n0 + t) / self.fs
+                self._sym4(sym(row, R, c, t))
+            zc = row[None, :] * self._rot[(R - cs) % L][:, None]
+            z2 = zc * zc                          # Re(-z^4) is the same for z and j conj(z)
+            E += self.E_ALPHA * (np.real(-z2 * z2) / (np.abs(z2) + 1e-30) - E)
+            kc, kt = (int(i) for i in np.unravel_index(int(np.argmax(E)), E.shape))
+            if E[kc, kt] > self.SWITCH * E[c, t]:
+                # Another guess may see the same points turned by a quarter turn or more: undo it,
+                # so the framers keep a continuous stream instead of having to find sync again.
+                d = rho(n0 + kt, kc) - rho(n0 + t, c)
+                q = int(round(np.angle(np.exp(1j * d)) / (np.pi / 2))) % 4
+                self._turn = (self._turn - q) % 4
+                self._best = (kc, kt)
+                if n0 + kt - self._last >= spb - half // 2:
+                    self._last = n0 + kt          # across the wrap, as in process()
+                    self._t = (n0 + kt) / self.fs
+                    self._sym4(sym(row, R, kc, kt))
+
+    _TURNS = (1, 1j, -1, -1j)
+
+    def _sym4(self, z):
+        """'qpsk-low': one symbol (already turned by self._turn) to the main framer pair, and
+        turned by a further 90, 180 and 270 degrees to the three probe pairs. When a probe holds
+        sync and has decoded a group more recently than the main pair (or the main pair has lost
+        sync), the main pair takes that probe's turn from now on."""
+        for v in (z.real, z.imag):
+            a = abs(v)
+            self._amp += self.LEVEL_A * (a - self._amp)
+            self._var += self.LEVEL_A * ((a - self._amp) ** 2 - self._var)
+        for q, turn in enumerate(self._TURNS):
+            w = z * turn
+            for bit in (1 if w.real > 0 else 0, 1 if w.imag > 0 else 0):
+                for f in (self._compacts[q], self._rbdses[q]):
+                    f.push(bit)
+                    f.alert_tick()
+        main = max(self._compacts[0].last_group_t, self._rbdses[0].last_group_t)
+        lost = not (self._compacts[0].synced or self._rbdses[0].synced)
+        for q in (1, 2, 3):
+            probe = (self._compacts[q], self._rbdses[q])
+            if any(f.synced for f in probe) and (lost or max(f.last_group_t for f in probe) > main):
+                self._turn = (self._turn + q) % 4         # a probe hears groups the main pair doesn't
+                for f in self._compacts[1:] + self._rbdses[1:]:
+                    f.reset()
+                break

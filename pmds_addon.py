@@ -25,7 +25,8 @@ The data path, on the AM receiver's channel (48 kHz, before its own carrier lock
   decoders      one PmdsDecoder per bit rate (23.4375, 46.875, 93.75, 187.5 bit/s), each
                 framing the bits both ways (compact and RBDS-native); whichever holds block
                 sync reports the station. EXPERIMENTAL (branch experimental-qpsk): one more
-                for the two-stream form, QPSK at 187.5 bit/s (93.75 symbols/s; pmds.qpsk)
+                for the two-stream form, QPSK at 187.5 bit/s (93.75 symbols/s; pmds.qpsk), and
+                one for half-rate QPSK at 93.75 bit/s (46.875 symbols/s, subcarrier 62.5 Hz)
 
 PmdsDecoder, data_path() and the constants are also what pmds_check.py and
 pmds_channel_test.py use, so the bench tools decode exactly as the tuner does.
@@ -42,6 +43,7 @@ from pmds.demod import Demodulator
 PMDS_FS    = 6000                             # data path sample rate: 32 samples per bit at 187.5 bit/s
 PMDS_RATES = (23.4375, 46.875, 93.75, 187.5)
 PMDS_QPSK_RATES = (187.5,)                    # experimental: the two-stream form, 93.75 symbols/s
+PMDS_QPSK_LOW_RATES = (93.75,)                # experimental: half-rate QPSK, 46.875 symbols/s at 62.5 Hz
 PLL_HZ     = 1.0                              # carrier PLL; a 4 Hz one follows (and eats) the slow rate's data
 PLL_PULL_HZ = 60.0                            # how far off frequency the PLL will pull in
 
@@ -56,7 +58,8 @@ class PmdsDecoder(Demodulator, gr.sync_block):
     """pmds.Demodulator as a GNU Radio sink: complex in at fs, carrier on the real axis."""
 
     def __init__(self, fs=6000, bit_rate=46.875, modulation='bpsk'):
-        gr.sync_block.__init__(self, name='PMDS decoder %g%s' % (bit_rate, ' QPSK' if modulation == 'qpsk' else ''),
+        gr.sync_block.__init__(self, name='PMDS decoder %g%s' % (bit_rate, {'qpsk': ' QPSK', 'qpsk-low': ' QPSK low'}
+                                                                .get(modulation, '')),
                                in_sig=[np.complex64], out_sig=None)
         Demodulator.__init__(self, fs, bit_rate, modulation)
 
@@ -64,7 +67,7 @@ class PmdsDecoder(Demodulator, gr.sync_block):
         return self.process(input_items[0])
 
 
-def data_path(tb, src, ch_rate, rates=PMDS_RATES, qpsk_rates=PMDS_QPSK_RATES):
+def data_path(tb, src, ch_rate, rates=PMDS_RATES, qpsk_rates=PMDS_QPSK_RATES, qpsk_low_rates=PMDS_QPSK_LOW_RATES):
     """Build the PMDS data path on a channel at ch_rate (a multiple of 6000 Hz, carrier near
     0 Hz) and connect it: tb.connect(src, PLL, data channel, decoders). Returns
     (pll, data_lp, decoders)."""
@@ -73,7 +76,8 @@ def data_path(tb, src, ch_rate, rates=PMDS_RATES, qpsk_rates=PMDS_QPSK_RATES):
                                         -2 * math.pi * PLL_PULL_HZ / ch_rate)
     taps = firdes.low_pass(1.0, ch_rate, 500.0, 300.0, filter.window.WIN_HAMMING)
     lp = filter.fir_filter_ccf(int(ch_rate) // PMDS_FS, taps)
-    decs = [PmdsDecoder(PMDS_FS, r) for r in rates] + [PmdsDecoder(PMDS_FS, r, 'qpsk') for r in qpsk_rates]
+    decs = ([PmdsDecoder(PMDS_FS, r) for r in rates] + [PmdsDecoder(PMDS_FS, r, 'qpsk') for r in qpsk_rates]
+            + [PmdsDecoder(PMDS_FS, r, 'qpsk-low') for r in qpsk_low_rates])
     tb.connect(src, pll, lp)
     for d in decs:
         tb.connect(lp, d)
@@ -135,7 +139,7 @@ class Addon:
     def readout(self):
         best = self.pmds_best()
         if best.last_group_t < 0 and not best.synced:
-            return 'PMDS: searching (23.4 to 187.5 bit/s and 187.5 QPSK, compact and RBDS)'
+            return 'PMDS: searching (23.4 to 187.5 bit/s, 187.5 QPSK and 93.75 QPSK low, compact and RBDS)'
         cn = best.cn_db()
         song = ' / '.join(x for x in (best.artist, best.title) if x)
         extra = '   '.join(x for x in (

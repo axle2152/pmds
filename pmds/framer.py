@@ -99,8 +99,8 @@ class Framer:
 
     @property
     def rate_name(self):
-        """The bit rate for display, '93.75', or '187.5 QPSK' for the two-stream form."""
-        return '%g%s' % (self.bit_rate, ' QPSK' if self.modulation == 'qpsk' else '')
+        """The bit rate for display: '93.75', '187.5 QPSK', or '93.75 QPSK low' (half rate)."""
+        return '%g%s' % (self.bit_rate, {'qpsk': ' QPSK', 'qpsk-low': ' QPSK low'}.get(self.modulation, ''))
 
     def now(self):
         return self.dec.now()
