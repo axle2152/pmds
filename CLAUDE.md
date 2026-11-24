@@ -21,7 +21,11 @@ variant: `modulation='qpsk-low'`, half-rate QPSK, today's 93.75 bit/s at 46.875 
 steps 120 degrees per symbol, so the decoder also searches the place in a 3-symbol cycle, undoes
 quarter turns when it moves between equally good guesses, and keeps three probe framer pairs to
 find the turn again after a jump (only the main pair is shown). Raising the deviation is out for
-synchronous radios. Design, results and open questions: `docs/QPSK_Experiment.md`. The
+synchronous radios (and the HDR-16 narrows its IF past about 20 degrees). Its two weak spots,
+a second PMDS station at night and recovery after dropped samples, resisted several fixes
+(listed in the doc); `dqpsk-low` (differential) fixes the second but costs about 1.5 dB on weak
+signals, so it is kept only as an option. Earmarked, not started: block repair from soft
+decisions (possible patents; only if the deviation must come down). Design, results and open questions: `docs/QPSK_Experiment.md`. The
 C decoder and Teensy sketch stay BPSK (`tests/test_c.py` must still pass); the spec is
 unchanged. Keep BPSK's numbers bit-identical when touching `pmds/demod.py`.
 

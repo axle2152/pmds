@@ -166,8 +166,10 @@ today's steady tone, and by how much? Only listening on the bench can answer tha
 4. If QPSK is kept: port it to the C decoder, write it into the specification, and give the
    changed physical layer its own prior-art check.
 5. **Half-rate QPSK on the bench:** listen on the HDR-16 against BPSK at 8.6 and at 6.8 degrees,
-   then the weak-signal and skywave runs. Still to look at in simulation: the two-PMDS-station
-   night case, and faster recovery after a jump.
+   then the weak-signal and skywave runs.
+6. **Earmarked: repair that uses how sure each bit decision was** (soft decisions). It could win
+   back 1 to 2 dB in the receiver without changing the signal, which would pay for a lower
+   deviation. It may touch existing patents, so it waits for a prior-art check and a need.
 
 ## First bench result
 
@@ -177,6 +179,11 @@ heard it, and not very differently from BPSK. That fits the measurements above: 
 detector hears the phase squared, so what reaches the ear follows the data's power, whatever its
 shape. Turning the tone into noise moved the sound around without removing it, and raising the
 deviation would make it louder. So the next variant moves the sound lower in frequency instead.
+
+Also from the bench: the HDR-16 narrows its IF when the deviation goes well past 20 degrees,
+even on a strong signal. That leaves headroom for the peaks of the QPSK forms (about 12 degrees
+for either at the 8.6 setting, about 16 for 187.5 bit/s QPSK at 12.2), but it is one more
+reason the deviation can't simply go up.
 
 ## Variant 2: half-rate QPSK (`qpsk-low`)
 
@@ -265,11 +272,41 @@ there, where both BPSK settings did for about 15 s. Why it loses groups there is
 looked at; the turn probes reacting to the other station's symbols are the first suspect.
 
 
+## The two weak spots (November 2026)
+
+**A second PMDS station at night.** As the two stations fade, the timing measure hops between
+their timings and wanders during fades, 35 to 90 times in 3 minutes. BPSK hops just as often,
+but it picks the wanted station up again faster: in one pair of runs BPSK was in sync 80 to 96%
+of the time, half-rate QPSK 54 to 71%. Tried, and not kept because none helped and some cost a
+few points elsewhere:
+
+- remembering the quarter turn for each station's timing, and for the station being decoded;
+- letting a probe move the main pair only when it hears the station on show;
+- making far jumps of the timing harder while in sync;
+- faster timing averages (worse in every case: 33 to 39% in this test at 1/8 and 1/16 per symbol,
+  against 46% at 1/32).
+
+**Differential coding** (`dqpsk-low`, kept as an option: `pmds_channel_test.py --mod dqpsk-low`):
+the same waveform with the bits on the change of phase between symbols, so there is no quarter
+turn to keep track of. The decoder gets much simpler (no place in the cycle, no turn, no probe
+framers), and it recovers from dropped samples about as well as BPSK (75 to 81% of groups kept,
+against 52 to 62% for half-rate QPSK). But one bad symbol spoils two decisions, which often puts
+two bit errors in one block, past the one-bit repair. It came out about 1.5 dB worse on steady
+weak signals (43% of groups at 4 dB C/N, against 85% for half-rate QPSK and 92% for BPSK), worse
+with a second station in steady conditions (82%), and no better in the night case (52%).
+
+So both weak spots stay. They are the price of half-rate QPSK against today's BPSK: nights with
+a second PMDS station on the channel (about 50% of groups against 64%), and recovery after a
+jump in the samples (a bench-receiver artifact). Everywhere else it is close to BPSK at 8.6
+degrees, with about 4 dB less sound on synchronous detectors and plain radios in fading, and
+14 dB less on a mistuned radio.
+
 ## Running it
 
     python tests/test_pmds.py                         # includes the QPSK cases
     python tests/qpsk_measures.py                     # waveform, weak signal, dropped samples
     python pmds_channel_test.py --qpsk                # every preset; add --dev 12.2, --cn 10, --co -10 ...
     python pmds_channel_test.py --qpsk-low            # half-rate QPSK; compare with --dev 6.8 (BPSK)
+    python pmds_channel_test.py --mod dqpsk-low       # half-rate QPSK, differential
     python tests/false_displays.py --rate 187.5
     python tests/test_addon.py                        # includes QPSK through the tuner

@@ -36,7 +36,7 @@ the subcarrier's phase and mixes the two streams (a quarter symbol swaps them). 
 therefore times symbols by the fourth power of the matched filter's output, which peaks
 sharply where the four QPSK points line up (see pmds.demod).
 
-Two profiles (PROFILES):
+Three profiles (PROFILES):
   'qpsk'      187.5 bit/s: 93.75 symbols/s, subcarrier at the symbol rate (93.75 Hz), as above.
   'qpsk-low'  93.75 bit/s, today's rate: 46.875 symbols/s, half the bandwidth, the subcarrier at
               4/3 of the symbol rate (62.5 Hz), so the band is about 27 to 98 Hz, clear of the
@@ -47,6 +47,11 @@ Two profiles (PROFILES):
 With the subcarrier at 4/3 of the symbol rate, its phase at a symbol's centre steps by 120
 degrees from one symbol to the next and repeats every 3 symbols (CYCLE), so the templates come
 in 3 pairs and the receiver also finds which symbol of the 3 it is looking at.
+  'dqpsk-low' the 'qpsk-low' waveform with the bits on the change of phase from one symbol to the
+              next (differential QPSK): a symbol k carries quarter turns m_k (bit pairs in Gray
+              order) and is the symbol before turned by m_k. The receiver then needs neither the
+              place in the cycle nor the turn of the points, only their change, at the cost of
+              one bad symbol spoiling two decisions.
 """
 from functools import lru_cache
 
@@ -56,7 +61,14 @@ ALPHA = 0.5        # root-raised-cosine roll-off: 0.5 keeps 99% of the energy in
 SPAN = 4           # pulse length: this many symbols either side of the centre
 
 # name: (bits per symbol, subcarrier / symbol rate as (numerator, denominator))
-PROFILES = {'qpsk': (2, (1, 1)), 'qpsk-low': (2, (4, 3))}
+PROFILES = {'qpsk': (2, (1, 1)), 'qpsk-low': (2, (4, 3)), 'dqpsk-low': (2, (4, 3))}
+DIFFERENTIAL = ('dqpsk-low',)   # the bits ride on the change of phase from one symbol to the next
+GRAY = {(0, 0): 0, (0, 1): 1, (1, 1): 2, (1, 0): 3}    # bit pair -> quarter turns
+UNGRAY = {v: k for k, v in GRAY.items()}
+
+
+def is_differential(modulation):
+    return str(modulation).lower() in DIFFERENTIAL
 
 
 def is_qpsk(modulation):

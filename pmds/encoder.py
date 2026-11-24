@@ -418,6 +418,13 @@ class Encoder:
         nsym = len(bits) // 2
         a = 2.0 * bits[0:2 * nsym:2] - 1
         b = 2.0 * bits[1:2 * nsym:2] - 1
+        if qpsk.is_differential(mod):             # the bits turn the symbol before
+            s = getattr(self, '_qd', 1 + 1j)
+            for k in range(nsym):
+                s *= 1j ** qpsk.GRAY[(int(bits[2 * k]), int(bits[2 * k + 1]))]
+                s = complex(round(s.real), round(s.imag))
+                a[k], b[k] = s.real, s.imag
+            self._qd = s
         acc = np.zeros(nsym * spb + 2 * h)                      # starts h samples before the slots
         acc[:2 * h] += self._qacc
         c = spb // 2                                            # each symbol's centre, mid-slot

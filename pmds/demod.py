@@ -45,7 +45,11 @@ which z^4 can't see. When the decoder moves between such guesses it works out th
 it. After a jump it can't (dropped samples, a deep fade), so three more framer pairs watch the
 other three quarter turns: when the main pair has lost sync and one of them finds it, the main
 pair is turned to match and finds sync again with its station data kept. Only the main pair is
-shown and reported (framers, compact, rbds).
+shown and reported (framers, compact, rbds). modulation='dqpsk-low' is the same waveform
+with the bits on the change of phase between symbols: the phase is demodulated against the
+subcarrier at absolute time, so every symbol comes out turned by the same unknown amount, which
+the change from one symbol to the next cancels. No place in the cycle, no turn, no probes; the
+timing comes from the size of the averaged z^4 alone.
 """
 import math
 
@@ -76,10 +80,15 @@ class Demodulator:
         self.qpsk = _qpsk.is_qpsk(self.modulation)   # experimental: two bits per symbol
         self.sym_rate = _qpsk.symbol_rate(self.modulation, self.bit_rate) if self.qpsk else self.bit_rate
         self._cyc = _qpsk.cycle(self.modulation) if self.qpsk else 1
+        self._diff = self.qpsk and _qpsk.is_differential(self.modulation)
         self.spb = int(round(self.fs / self.sym_rate))
         n = self.spb
         self._tmpl = np.sin(2 * np.pi * np.arange(n) / n) / (n / 2.0)   # a clean bit reads +/- its peak phase
-        if self.qpsk and self._cyc == 1:          # a clean symbol reads +/- the deviation setting on each stream
+        if self._diff:                            # one real matched filter after the subcarrier is taken off
+            g = _qpsk.rrc(n)
+            self._ti = g / (np.sum(g * g) / (2 * np.sqrt(2)))     # a clean symbol reads +/- the deviation per stream
+            self._w = 2 * np.pi * _qpsk.sub_cycles(self.modulation) / n
+        elif self.qpsk and self._cyc == 1:        # a clean symbol reads +/- the deviation setting on each stream
             ti, tq = _qpsk.templates(n)
             self._ti, self._tq = ti / np.sum(ti * ti), tq / np.sum(tq * tq)
         elif self.qpsk:
@@ -103,7 +112,7 @@ class Demodulator:
             self.E_ALPHA = 1 / 64.0 if self._cyc == 1 else 1 / 32.0
         self._reset_req = False
         self.log = None                           # optional log(framer, kind, fields) per group
-        nrot = 4 if self._cyc > 1 else 1          # 'qpsk-low': the main pair and three probes
+        nrot = 4 if (self._cyc > 1 and not self._diff) else 1    # 'qpsk-low': the main pair and three probes
         self._compacts = [CompactFramer(self) for _ in range(nrot)]
         self._rbdses = [RbdsFramer(self) for _ in range(nrot)]
         self._all = tuple(self._compacts + self._rbdses)
@@ -136,7 +145,10 @@ class Demodulator:
         self._th_h = np.zeros(self._W)
         self._E = np.zeros(self.spb)              # matched-filter energy at each timing phase (QPSK: the z^4 measure)
         self._best, self._n, self._last = 0, 0, -10 ** 9
-        if self._cyc > 1:                         # 'qpsk-low': per place in the cycle, per timing phase
+        if self._diff:                            # 'dqpsk-low': complex timing measure, the symbol before
+            self._E, self._best, self._zprev, self._thn = np.zeros(self.spb, np.complex128), 0, None, 0
+            self._hu = np.zeros(self._ntap, np.complex128)        # the phase with the subcarrier off
+        elif self._cyc > 1:                       # 'qpsk-low': per place in the cycle, per timing phase
             self._E, self._best = np.zeros((self._cyc, self.spb)), (0, 0)
             self._turn = 0                        # quarter turns undone before the framers
         self._t = None                                # time of the bit being decided, if any
@@ -240,6 +252,18 @@ class Demodulator:
             th = zc.imag / max(abs(self._c) ** 2, 1e-20)
         buf = np.concatenate((self._hist, th))
         self._hist = buf[len(buf) - self._ntap:]
+        if self._diff:                                # 'dqpsk-low': the subcarrier off at absolute time
+            nn = self._thn + np.arange(len(th))
+            self._thn += len(th)
+            buf = np.concatenate((self._hu, th * np.exp(1j * self._w * nn)))
+            self._hu = buf[len(buf) - self._ntap:]
+            rows = np.concatenate((self._rows, np.correlate(buf, self._ti, 'valid')))
+            nrows = len(rows) // self.spb
+            self._diff_rows(rows, nrows)
+            self._t = None
+            self._n += nrows * self.spb
+            self._rows = rows[nrows * self.spb:]
+            return m
         if self.qpsk and self._cyc > 1:               # 'qpsk-low': the complex matched filter
             mf = np.correlate(buf, self._ti, 'valid')
             rows = np.concatenate((self._rows, mf))
@@ -398,3 +422,45 @@ class Demodulator:
                 for f in self._compacts[1:] + self._rbdses[1:]:
                     f.reset()
                 break
+
+    def _diff_rows(self, rows, nrows):
+        """'dqpsk-low': the timing loop of process() on the complex matched-filter output. Every
+        symbol is turned by the same unknown amount, so the timing measure is the size of the
+        averaged z^4 (large where the four points line up, whatever their turn)."""
+        spb, half, E = self.spb, self.spb // 2, self._E
+        for r in range(nrows):
+            row = rows[r * spb:(r + 1) * spb]
+            n0 = self._n + r * spb
+            b = self._best
+            if n0 + b - self._last >= half:
+                self._last = n0 + b
+                self._t = (n0 + b) / self.fs
+                self._dsym(row[b], E[b])
+            z2 = row * row
+            E += self.E_ALPHA * (z2 * z2 / (np.abs(z2) + 1e-30) - E)
+            mag = np.abs(E)
+            k = int(np.argmax(mag))
+            if mag[k] > self.SWITCH * mag[b]:
+                self._best = k
+                if n0 + k - self._last >= spb - half // 2:
+                    self._last = n0 + k           # across the wrap, as in process()
+                    self._t = (n0 + k) / self.fs
+                    self._dsym(row[k], E[k])
+
+    def _dsym(self, z, e4):
+        """'dqpsk-low': one symbol. The averaged z^4 (e4) gives the turn all symbols share, to
+        a quarter turn: the symbol is decided against that, and its two bits are the change in
+        quarter turns from the symbol before (so the unknown quarter turn cancels). Deciding each
+        symbol against the steady average, not against the noisy symbol before, keeps the cost of
+        the differential coding to about one bad symbol spoiling two decisions."""
+        a = abs(z) / np.sqrt(2)
+        self._amp += self.LEVEL_A * (a - self._amp)
+        self._var += self.LEVEL_A * ((a - self._amp) ** 2 - self._var)
+        theta = (np.angle(e4) - np.pi) / 4                # where the points sit, to a quarter turn
+        q = int(np.floor(np.angle(z * np.exp(-1j * theta)) / (np.pi / 2))) % 4
+        if self._zprev is not None:
+            for bit in _qpsk.UNGRAY[(self._zprev - q) % 4]:
+                for f in self.framers:
+                    f.push(bit)
+                    f.alert_tick()
+        self._zprev = q

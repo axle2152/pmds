@@ -393,6 +393,26 @@ def test_qpsk_low():
         (d.ps, d.rt, d.compact.groups)
 
 
+def test_dqpsk_low():
+    # half-rate QPSK with differential coding: the same waveform, the bits on the change of phase
+    fs, rt = 6000, 'Queen - Bohemian Rhapsody (Remastered 2011 Extended Version)'
+    y = _qpsk_station(45, mod='dqpsk-low')
+    d = _qpsk_decode(y, mod='dqpsk-low')
+    assert (d.pi, d.ps, d.rt) == (0x55E3, 'AM 1650 ', rt), (d.pi, d.ps, d.rt)
+    assert d.compact.counts['lost'] == 0 and d.compact.groups >= 42, (d.compact.counts, d.compact.groups)
+    y = _qpsk_station(150, mod='dqpsk-low', rt='Clock test')
+    rng = np.random.default_rng(3)
+    parts, i = [], 0
+    while i < len(y):                                     # drop 5 to 300 samples every 4 to 8 s
+        j = min(len(y), i + int(rng.uniform(4, 8) * fs))
+        parts.append(y[i:j])
+        i = j + int(rng.integers(5, 300))
+    d = _qpsk_decode(np.concatenate(parts), mod='dqpsk-low')
+    # no turn to find again after a jump: it keeps about as many groups as BPSK
+    assert (d.ps, d.rt) == ('AM 1650 ', 'Clock test') and d.compact.groups > 0.7 * 150 * 93.75 / 94, \
+        (d.ps, d.rt, d.compact.groups)
+
+
 def test_sketch_copy():
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'c'))
     import sync_firmware
@@ -402,6 +422,6 @@ def test_sketch_copy():
 if __name__ == '__main__':
     for t in (test_check_code, test_vectors, test_loopback, test_slips, test_clock_offset, test_alert_in_rt,
               test_alert_needs_two, test_one_station, test_sample_rate, test_qpsk_loopback,
-              test_qpsk_clock_and_slips, test_qpsk_sample_rate, test_qpsk_low, test_sketch_copy):
+              test_qpsk_clock_and_slips, test_qpsk_sample_rate, test_qpsk_low, test_dqpsk_low, test_sketch_copy):
         t()
         print('ok  ', t.__name__)

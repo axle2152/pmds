@@ -274,6 +274,8 @@ def main():
                     help='EXPERIMENTAL: the two-stream form (pmds.qpsk), at the same data power per --dev')
     ap.add_argument('--qpsk-low', action='store_true',
                     help='EXPERIMENTAL: half-rate QPSK, 93.75 bit/s with the subcarrier at 62.5 Hz')
+    ap.add_argument('--mod', default=None, choices=('bpsk', 'qpsk', 'qpsk-low', 'dqpsk-low'),
+                    help='EXPERIMENTAL: the modulation by name (dqpsk-low: half-rate QPSK, differential)')
     ap.add_argument('--formats', default='compact', help='compact, rbds or both')
     ap.add_argument('--seeds', type=int, default=3)
     ap.add_argument('--secs', type=float, default=180)
@@ -297,7 +299,7 @@ def main():
                     help='alert timing: PTY 31 + flag on for 30 groups every 80; how long until it shows')
     a = ap.parse_args()
     global DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB, CO_DB, CO_HZ, CO_PMDS, CO_STEP, MOD
-    MOD = 'qpsk-low' if a.qpsk_low else 'qpsk' if a.qpsk else 'bpsk'
+    MOD = a.mod or ('qpsk-low' if a.qpsk_low else 'qpsk' if a.qpsk else 'bpsk')
     if a.rates is None:
         a.rates = '187.5' if MOD == 'qpsk' else '93.75'
     DEV, IPM, PROGRAM, NORM, FLOOR, SKY_DB = a.dev, a.ipm, a.program, a.norm, a.env_floor, a.sky_db
@@ -305,7 +307,8 @@ def main():
     rates = [float(r) for r in a.rates.split(',')]
     fmt = lambda v: '  -- ' if v is None else '%5.0f' % v
     print('%sC/N %g dB, data +/-%g deg%s, IPM %g deg, %s program, %d s per run, %d seeds%s' % (
-        {'qpsk': 'QPSK (experimental), ', 'qpsk-low': 'half-rate QPSK (experimental), '}.get(MOD, ''), a.cn, a.dev,
+        {'qpsk': 'QPSK (experimental), ', 'qpsk-low': 'half-rate QPSK (experimental), ',
+         'dqpsk-low': 'half-rate differential QPSK (experimental), '}.get(MOD, ''), a.cn, a.dev,
         ' (BPSK-equivalent power)' if MOD != 'bpsk' else '',
         a.ipm, a.program, a.secs, a.seeds,
         '' if a.co is None else ', another station %+g dB, %g Hz off%s' % (
