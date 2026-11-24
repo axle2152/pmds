@@ -165,6 +165,9 @@ today's steady tone, and by how much? Only listening on the bench can answer tha
    Where to settle, if anywhere, is for the listening tests to decide.
 4. If QPSK is kept: port it to the C decoder, write it into the specification, and give the
    changed physical layer its own prior-art check.
+5. **Half-rate QPSK on the bench:** listen on the HDR-16 against BPSK at 8.6 and at 6.8 degrees,
+   then the weak-signal and skywave runs. Still to look at in simulation: the two-PMDS-station
+   night case, and faster recovery after a jump.
 
 ## First bench result
 
@@ -225,8 +228,41 @@ kept 62% of groups, against BPSK's 81%, losing about 2.4 s per drop against 1.2 
 find the timing, the place in the cycle and the quarter turn again. Dropped samples come from
 the bench receiver's USB link, not from radio, but a deep fade can also make the timing jump.
 
-The channel simulations (skywave presets, weak night signals, bass-heavy program, a second
-station) are still to be added here.
+### Channel simulations
+
+Share of groups decoded, with the time for the full RadioText where it differs; mean of 3 runs
+of 180 s per preset. BPSK at 8.6 degrees is today's PMDS; BPSK at 6.8 degrees is what a
+synchronous detector hears as loud as half-rate QPSK at 8.6.
+
+| Case | BPSK 8.6° | BPSK 6.8° | Half-rate QPSK 8.6° |
+|---|---|---|---|
+| 30 dB C/N, every preset | 97 to 99% | 97 to 99% | 95 to 99% |
+| Bass-heavy program, the same presets | 96 to 99% | 95 to 99% | 93 to 99% |
+| Night (night2), 18 dB C/N | 92%, RT 22 s | 91%, RT 22 s | 93%, RT 23 s |
+| Disturbed night, 18 dB C/N | 93%, RT 28 s | 90%, RT 32 s | 92%, RT 37 s |
+| Night, 14 dB C/N | 89%, RT 25 s | 85%, RT 25 s | 87%, RT 23 s |
+| Disturbed night, 14 dB C/N | 86%, RT 32 s | 80%, RT 45 s | 83%, RT 35 s |
+| Night, 10 dB C/N | 82%, RT 25 s | 72%, RT 36 s | 77%, RT 34 s |
+| Disturbed night, 10 dB C/N | 71%, RT 50 s | 57%, RT 51 s | 69%, RT 46 s |
+| Another station 10 dB down, night1 | 78%, RT 43 s | 78%, RT 43 s | 80%, RT 39 s |
+| ... with bass-heavy program, steady | 90% | 57% | 89% |
+| Another PMDS station 6 dB down, night1 | 64%, RT 54 s; the other station on show 15 s | 65%, RT 54 s; 15 s | 50%, RT 92 s; never on show |
+| Alert shown (median) | 2.1 s | 2.1 s | 2.4 s |
+| Plain AM radio in fading, 60 to 400 Hz (median, 3 presets) | −46.9 to −41.7 dB | 2 dB less | 4 dB less |
+
+(187.5 bit/s QPSK held 22% in the second-station-with-bass case.)
+
+Against BPSK at 6.8 degrees, its equal on a synchronous detector, half-rate QPSK is more robust
+almost everywhere: 5 to 12 points more on weak night signals, and 89% against 57% with a
+second station turning the program's bass into phase. It is also 2 dB quieter on a plain radio
+in fading. Against today's BPSK at 8.6 it gives up 1 to 5 points on weak night signals and
+holds the same in the second-station-with-bass case. In return it is about 4 dB quieter on
+synchronous detectors and on plain radios in fading, and 14 dB quieter on a mistuned one.
+
+The one case where it does worse than both is a second PMDS station 6 dB down at night: 50% of
+groups and the RadioText in 92 s, against 64% and 54 s. It never showed the other station
+there, where both BPSK settings did for about 15 s. Why it loses groups there is still to be
+looked at; the turn probes reacting to the other station's symbols are the first suspect.
 
 
 ## Running it
