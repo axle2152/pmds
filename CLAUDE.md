@@ -100,10 +100,12 @@ archive.softwareheritage.org takes a fresh one; its API shows each visit).
   exact measure with no radio in the loop: the envelope scales with the level, so the level
   for -95% is the recorded level times 0.95 over the deepest trough, capped so the highest
   peak stays within +125%. A different audio chain needs its own figure, found the same way.
-  With the downmix off Stereo Tool sends stereo, and the sum's positive peaks run about 1.8
-  times the negatives (at asymmetry 125% as at 200%), so +125% caps the level at 1.35 with the
-  negatives near -69%: that is the figure for C-QUAM stereo, whose envelope is the same
-  1 + (L+R). A WAV of Stereo Tool's output gave 1.25, but the live feed reaches the flowgraph
+  C-QUAM stereo (the downmix off) takes the same 1.865: recorded at 1.35, its envelope ran
+  -68.0% / +86.5% with the pilot at 4.98%, and rebuilt at 1.865 with the modulator's formula
+  it gives -94.0% / +119.5%, each channel within -71% / +95%, and its worst emission 49 dB
+  under the carrier from 10.2 to 20 kHz (the limit is 25). An earlier stereo feed, recorded
+  with the flowgraph in mono, had positive peaks 1.8 times the negatives and would have needed
+  1.35, so check a recording when Stereo Tool's stereo settings change. A WAV of Stereo Tool's output gave 1.25, but the live feed reaches the flowgraph
   about 3.3 dB quieter: calibrate from the live feed. Level 2 held the carrier at zero 4% of
   the time, and the phase data vanishes with the carrier. At 1.865 the tuner's AM PEAK MOD
   should read about 95% on a clean signal. The RTL-SDR clips often on medium wave.
