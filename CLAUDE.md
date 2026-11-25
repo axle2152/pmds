@@ -92,14 +92,21 @@ archive.softwareheritage.org takes a fresh one; its API shows each visit).
   and a rotator after the resampler moves the signal back down, so the HackRF's own I/Q image
   and LO leakage land clear of the station; with the carrier on its centre (0, the old way)
   they land on it, and in simulation an image 15 dB down turned 8.6 degrees into 5.9 (the
-  bench read 6.8 as about 4.8). The bench result with the offset is still to come (then spec
-  sections 10 and 12). `mod_level` is 1.25 for the bench's Stereo Tool output (its peaks at
-  +0.50 of full scale, AM asymmetry 200%): negative peaks -95%, positive +125%, worked out by
-  running a minute of that audio through the flowgraph's own filters and modulator. Level 2
-  held the carrier at zero 4% of the time, and the phase data vanishes with the carrier. A
-  different audio chain needs its own figure: record the two low-pass outputs (Float To
-  Complex into a File Sink) and take 1 over the deepest negative swing of L+R, capped so the
-  positive peaks stay within +125%. The RTL-SDR clips often on medium wave.
+  bench read 6.8 as about 4.8). With the offset the bench read 6.8 as 6.7 (November 2026);
+  whether it also clears the envelope detector's faint tone (spec section 10) is still to be
+  heard. `mod_level` is 1.865 for the bench's live Stereo Tool feed with "AM Downmix to mono"
+  ticked and AM asymmetry 125%: negative peaks -94.8%, positive +117.8%, nothing clipped.
+  It was measured from the flowgraph's own File Sink (`pmds_tx.cfile`, simulator off), the
+  exact measure with no radio in the loop: the envelope scales with the level, so the level
+  for -95% is the recorded level times 0.95 over the deepest trough, capped so the highest
+  peak stays within +125%. A different audio chain needs its own figure, found the same way.
+  With the downmix off Stereo Tool sends stereo, and the sum's positive peaks run about 1.8
+  times the negatives (at asymmetry 125% as at 200%), so +125% caps the level at 1.35 with the
+  negatives near -69%: that is the figure for C-QUAM stereo, whose envelope is the same
+  1 + (L+R). A WAV of Stereo Tool's output gave 1.25, but the live feed reaches the flowgraph
+  about 3.3 dB quieter: calibrate from the live feed. Level 2 held the carrier at zero 4% of
+  the time, and the phase data vanishes with the carrier. At 1.865 the tuner's AM PEAK MOD
+  should read about 95% on a clean signal. The RTL-SDR clips often on medium wave.
 - The README is written in plain language for a general reader; keep that tone.
 
 ## Aims and design decisions
