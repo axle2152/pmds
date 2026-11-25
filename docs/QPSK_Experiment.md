@@ -272,6 +272,40 @@ there, where both BPSK settings did for about 15 s. Why it loses groups there is
 looked at; the turn probes reacting to the other station's symbols are the first suspect.
 
 
+## Second bench results (November 2026)
+
+- **187.5 bit/s QPSK at 6.8 degrees, overnight:** about 165,000 blocks at 37 to 40 dB C/N, 94%
+  clean, 5% repaired, about 1% lost, with some program audio needing more repairs than other.
+  BPSK at 8.6 was about 99% clean at that level. Thermal noise is far too weak at 37 to 40 dB to
+  cause this, so these errors come from the program itself, turned into phase somewhere in the
+  bench chain (the HackRF's incidental phase modulation is the first suspect). At 6.8 degrees
+  this QPSK gives each bit about 5 dB less energy than BPSK at 8.6, so the same disturbance
+  costs it more. The leak canceller takes out the part that follows the envelope linearly, not
+  the rest.
+- **Listening on the HDR-16:** BPSK at 8.6, 187.5 bit/s QPSK at 8.6 and half-rate QPSK at 6.8
+  all sounded the same. Only BPSK at 46.875 bit/s sounded lower: its steady tone sits at
+  93.75 Hz, an octave below 187.5 Hz. The QPSK noise seemed, if anything, more noticeable than
+  BPSK's pure tone.
+
+The measured advantages of the QPSK forms (3.9 to 8 dB less, A-weighted) didn't reach the ear.
+Likely reasons, still to be checked:
+
+1. Near the threshold of hearing, a few dB are hard to judge, especially between sounds of
+   different character.
+2. The QPSK sound is not smooth noise: it changes with every symbol, 93.75 or 46.875 times a
+   second. The ear hears changes at that rate as roughness or buzz, which is more noticeable
+   than a steady tone at the same level. A-weighting doesn't count roughness. BPSK's steady
+   tone may be the gentlest form this sound can take.
+3. A real synchronous detector holds its carrier lock with a small error, and then it also hears
+   the phase directly, not only the phase squared. That part grows with the deviation, not its
+   square, and sounds like the data's own spectrum.
+
+White noise would not help: the data lives below about 200 Hz, and spreading its sound evenly
+would move it up to where ears are most sensitive.
+
+So far the bench confirms the choice on main: BPSK at 93.75 bit/s, 8.6 degrees. Neither QPSK
+form bought an audible improvement on the HDR-16, and 187.5 bit/s at 6.8 degrees cost robustness.
+
 ## The two weak spots (November 2026)
 
 **A second PMDS station at night.** As the two stations fade, the timing measure hops between
