@@ -88,8 +88,12 @@ archive.softwareheritage.org takes a fresh one; its API shows each visit).
   receivers, a Sangean HDR-16 (synchronous detector) and a C.Crane CC Pocket. Bench and
   listening results come from them. The Soapy HackRF sink runs only whole-MHz rates (2 to
   20 Msps), and a flowgraph's rate variables must match it (`am_data_tx.grc` sends at exactly
-  2 Msps). Its carrier sits on the HackRF's own centre frequency; offset tuning is still to be
-  tried (spec section 10). The RTL-SDR clips often on medium wave.
+  2 Msps). The HackRF tunes `tx_offset` (default 100 kHz) above the carrier (`carrier_freq`)
+  and a rotator after the resampler moves the signal back down, so the HackRF's own I/Q image
+  and LO leakage land clear of the station; with the carrier on its centre (0, the old way)
+  they land on it, and in simulation an image 15 dB down turned 8.6 degrees into 5.9 (the
+  bench read 6.8 as about 4.8). The bench result with the offset is still to come (then spec
+  sections 10 and 12). The RTL-SDR clips often on medium wave.
 - The README is written in plain language for a general reader; keep that tone.
 
 ## Aims and design decisions
